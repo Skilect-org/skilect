@@ -18,7 +18,7 @@ Placify uses AI to analyze skills, identify gaps, generate roadmaps, and conduct
 - Clerk
 
 ## Team
-- Member 1
-- Member 2
-- Member 3
-- Member 4
+- Meet dadhaniya
+- Inayat Suthar
+- Nishant Pawde
+- Mayank Majumdar
