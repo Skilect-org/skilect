@@ -1,2 +1,24 @@
-# Skilect
-Placify is an AI-powered placement preparation platform that helps students become job-ready through personalized learning paths, AI mock interviews, resume analysis, coding assessments, skill-gap detection, and placement tracking—all in one unified dashboard.
+# Placify
+
+AI-powered placement preparation platform.
+
+## Problem
+Students don't know what skills they are missing, what to learn next, or how prepared they are for placements.
+
+## Solution
+Placify uses AI to analyze skills, identify gaps, generate roadmaps, and conduct mock interviews.
+
+## Tech Stack
+- React + Vite
+- Node.js + Express
+- Supabase
+- Neo4j
+- Gemini Flash
+- Sarvam AI
+- Clerk
+
+## Team
+- Member 1
+- Member 2
+- Member 3
+- Member 4
