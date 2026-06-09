@@ -1,4 +1,4 @@
-# Placify
+# Skilect
 
 AI-powered placement preparation platform.
 
