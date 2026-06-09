@@ -20,11 +20,11 @@ Responsibilities:
 Responsible for building and maintaining the core backend.
 
 Responsibilities:
-- Node.js
-- Express.js
-- API Development
+- Next.js API Routes
+- Core APIs
 - Authentication Integration
 - Backend Architecture
+- API Design
 
 ---
 
