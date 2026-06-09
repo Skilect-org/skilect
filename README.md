@@ -9,12 +9,24 @@ Students don't know what skills they are missing, what to learn next, or how pre
 Placify uses AI to analyze skills, identify gaps, generate roadmaps, and conduct mock interviews.
 
 ## Tech Stack
-- React + Vite
-- Node.js + Express
+Frontend:
+- React
+- Vite
+- Tailwind CSS
+- Framer Motion
+
+Backend:
+- Next.js API Routes
+
+Database:
 - Supabase
 - Neo4j
+
+AI:
 - Gemini Flash
 - Sarvam AI
+
+Authentication:
 - Clerk
 
 ## Team
