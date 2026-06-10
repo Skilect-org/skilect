@@ -1,8 +1,10 @@
 /**
  * Layout Components
  *
- * Navbar, Sidebar, Footer, and other layout primitives.
+ * Dashboard Sidebar, Navbar, and Layout wrapper.
  * Import from @/components/layout
  */
 
-export { Navbar } from "./navbar";
+export { DashboardSidebar } from "./dashboard-sidebar";
+export { DashboardNavbar } from "./dashboard-navbar";
+export { DashboardLayout } from "./dashboard-layout";

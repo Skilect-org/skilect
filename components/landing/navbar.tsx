@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -27,45 +28,20 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 bg-white transition-shadow duration-300 ${
-        scrolled ? "shadow-sm" : ""
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+        scrolled ? "bg-white/90 backdrop-blur-md shadow-sm" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-        {/* ── Left: Logo + Brand ── */}
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 select-none">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="text-indigo-600"
-          >
-            <path
-              d="M12 2L2 7l10 5 10-5-10-5Z"
-              fill="currentColor"
-              opacity=".85"
-            />
-            <path
-              d="M2 17l10 5 10-5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M2 12l10 5 10-5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-
-          <span className="text-xl font-bold tracking-tight text-indigo-600">
-            Skilect
-          </span>
+          <Image
+            src="/logo/skilect-logo.png"
+            alt="Skilect Logo"
+            width={180}
+            height={60}
+            className="h-12 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* ── Center: Nav links (desktop) ── */}
@@ -83,7 +59,7 @@ export default function Navbar() {
         </ul>
 
         {/* ── Right: Actions (desktop) ── */}
-        <div className="hidden md:flex items-center gap-5">
+        <div className="hidden md:flex items-center gap-6">
           <Link
             href="/login"
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
@@ -93,7 +69,7 @@ export default function Navbar() {
 
           <Link
             href="/register"
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 active:bg-indigo-800"
+            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm"
           >
             Get Started
           </Link>
@@ -126,9 +102,6 @@ export default function Navbar() {
           </div>
         </button>
       </nav>
-
-      {/* ── Bottom gradient line ── */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500" />
 
       {/* ── Mobile menu overlay ── */}
       <div
@@ -172,7 +145,7 @@ export default function Navbar() {
           <Link
             href="/register"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-indigo-700 active:bg-indigo-800"
+            className="flex items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
           >
             Get Started
           </Link>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -9,12 +10,19 @@ const navLinks = [
   { href: "/progress", label: "Progress" },
 ];
 
-export function Navbar() {
+export function DashboardNavbar() {
   return (
     <header className="border-b border-foreground/10">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="text-xl font-bold">
-          Skilect
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo/skilect-logo.png"
+            alt="Skilect Logo"
+            width={150}
+            height={50}
+            className="h-10 w-auto object-contain"
+            priority
+          />
         </Link>
         <div className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => (
