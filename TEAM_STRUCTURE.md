@@ -1,68 +1,101 @@
-# Team Structure
+# 👨‍💻 Team Structure
 
 ## Meet
-**Frontend Lead**
 
-Working on everything users see and interact with.
+### Team Lead & Frontend Lead
 
-Responsibilities:
-- React + Vite
-- Tailwind CSS
-- Framer Motion
-- UI/UX Design
-- Frontend Integration
+Responsible for the overall product experience and frontend development.
+
+**Responsibilities**
+
+* Next.js Frontend
+* React Components
+* Tailwind CSS
+* Framer Motion
+* UI/UX Design
+* Frontend Architecture
+* Frontend Integration
+* Team Coordination
 
 ---
 
 ## Nishant
-**Backend Lead**
 
-Responsible for building and maintaining the core backend.
+### Backend Lead
 
-Responsibilities:
-- Next.js API Routes
-- Core APIs
-- Authentication Integration
-- Backend Architecture
-- API Design
+Responsible for backend development and application architecture.
+
+**Responsibilities**
+
+* Next.js API Routes
+* Core APIs
+* Authentication Integration
+* Backend Architecture
+* API Design
+* Server Logic
 
 ---
 
 ## Mayank
-**Database & Deployment Lead**
 
-Handles data management and deployment infrastructure.
+### Database & Deployment Lead
 
-Responsibilities:
-- Supabase
-- Neo4j
-- Database Design
-- Supabase Storage
-- Deployment & Hosting
+Responsible for database management and deployment infrastructure.
+
+**Responsibilities**
+
+* Supabase
+* Neo4j
+* Database Design
+* Supabase Storage
+* Deployment & Hosting
 
 ---
 
 ## Inayat
-**AI & Backend Integration Lead**
 
-Responsible for AI-powered features and their backend integration.
+### AI Integration Lead
 
-Responsibilities:
-- Gemini Flash
-- Sarvam AI
-- AI Feature Development
-- Recommendation Logic
-- Search & Filter Functionality
-- AI Integration with Backend APIs
+Responsible for AI-powered features and intelligent recommendations.
+
+**Responsibilities**
+
+* Gemini Flash
+* Sarvam AI
+* AI Feature Development
+* Recommendation Engine
+* Search & Filter Functionality
+* AI Integration with Backend APIs
 
 ---
 
-## Team Rule
+# 🌳 Development Workflow
 
-Everyone owns their module, but major changes affecting another module should be discussed before implementation.
+```text
+feature/*
+    ↓
+develop
+    ↓
+main
+```
 
-**Branch Flow:**
+### Branches
 
-feature branch → develop → main
+* `main` → Stable Branch
+* `develop` → Active Development Branch
+* `feature/*` → Individual Feature Development
 
-No direct commits to `main`.
+---
+
+# 📌 Team Rules
+
+* Do not commit directly to `main`
+* Create a feature branch before starting any task
+* Pull the latest changes before working
+* Create a Pull Request to `develop`
+* Discuss major cross-module changes before implementation
+* Keep commit messages clear and meaningful
+
+---
+
+🚀 Build fast, communicate clearly, and keep the repository clean.
