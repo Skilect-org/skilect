@@ -1,31 +1,26 @@
-/**
- * Roadmap Types
- *
- * Type definitions for AI-generated learning roadmaps and skill nodes.
- */
+// types/roadmap.ts
+
+export type NodeStatus = 'LOCKED' | 'AVAILABLE' | 'COMPLETED';
+
+export interface Resource {
+  title: string;
+  url: string;
+  type: 'video' | 'article' | 'documentation';
+}
 
 export interface SkillNode {
   id: string;
-  name: string;
-  description: string;
-  level: "beginner" | "intermediate" | "advanced";
-  status: "not_started" | "in_progress" | "completed";
-  resources: Resource[];
-}
-
-export interface Resource {
-  id: string;
   title: string;
-  url: string;
-  type: "article" | "video" | "course" | "documentation";
+  description: string;
+  status: NodeStatus;
+  order: number;
+  resources: Resource[];
 }
 
 export interface Roadmap {
   id: string;
   userId: string;
-  title: string;
-  description: string;
-  nodes: SkillNode[];
-  createdAt: Date;
-  updatedAt: Date;
+  jobRole: string;
+  skills: SkillNode[];
+  createdAt: string;
 }

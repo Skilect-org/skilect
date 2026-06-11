@@ -1,27 +1,25 @@
+// proxy.ts (or middleware.ts)
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Public routes — no auth required
+// Define pages that are completely public (don't require a login to see)
 const isPublicRoute = createRouteMatcher([
-  "/", 
-  "/sign-in(.*)", 
-  "/sign-up(.*)",
-  "/api/webhooks(.*)", // Add this if you ever use Supabase/Stripe webhooks
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)"
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
+  // If the route isn't public, enforce authentication check
   if (!isPublicRoute(request)) {
-    await auth.protect(); // This blocks everything else and redirects to login
+    await auth.protect();
   }
 });
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    // Skip Next.js internals and static assets
+    '/((?!_next|[^?]*\\.(?:html|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
   ],
 };
