@@ -6,9 +6,8 @@ import Image from "next/image";
 import {
   SignInButton,
   SignUpButton,
-  SignedIn,
-  SignedOut,
   UserButton,
+  useUser,
 } from "@clerk/nextjs";
 
 const navLinks = [
@@ -19,6 +18,7 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { isSignedIn } = useUser();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -67,23 +67,23 @@ export default function Navbar() {
 
         {/* ── Right: Actions (desktop) ── */}
         <div className="hidden md:flex items-center gap-6">
-          <SignedOut>
-            <SignInButton>
-              <button className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
-                Login
-              </button>
-            </SignInButton>
+          {!isSignedIn ? (
+            <>
+              <SignInButton>
+                <button className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+                  Login
+                </button>
+              </SignInButton>
 
-            <SignUpButton>
-              <button className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm">
-                Get Started
-              </button>
-            </SignUpButton>
-          </SignedOut>
-
-          <SignedIn>
+              <SignUpButton>
+                <button className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm">
+                  Get Started
+                </button>
+              </SignUpButton>
+            </>
+          ) : (
             <UserButton />
-          </SignedIn>
+          )}
         </div>
 
         {/* ── Hamburger (mobile) ── */}
@@ -146,31 +146,31 @@ export default function Navbar() {
 
         <div className="mt-4 border-t border-gray-100 pt-4 flex flex-col gap-2">
           <div className="flex flex-col gap-2 px-4">
-            <SignedOut>
-              <SignInButton>
-                <button
-                  onClick={() => setMobileOpen(false)}
-                  className="flex w-full items-center justify-center rounded-lg px-4 py-3 text-base font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
-                >
-                  Login
-                </button>
-              </SignInButton>
+            {!isSignedIn ? (
+              <>
+                <SignInButton>
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="flex w-full items-center justify-center rounded-lg px-4 py-3 text-base font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    Login
+                  </button>
+                </SignInButton>
 
-              <SignUpButton>
-                <button
-                  onClick={() => setMobileOpen(false)}
-                  className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
-                >
-                  Get Started
-                </button>
-              </SignUpButton>
-            </SignedOut>
-
-            <SignedIn>
+                <SignUpButton>
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
+                  >
+                    Get Started
+                  </button>
+                </SignUpButton>
+              </>
+            ) : (
               <div className="flex w-full items-center justify-center">
                 <UserButton />
               </div>
-            </SignedIn>
+            )}
           </div>
         </div>
       </div>
