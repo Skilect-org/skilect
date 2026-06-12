@@ -9,7 +9,7 @@ export default function SignUpPage() {
           Create your Skilect account
         </p>
         {/* Clerk SignUp component will be placed here */}
-        <SignUp />
+        <SignUp path="/sign-up" fallbackRedirectUrl="/assessment" />
       </div>
     </main>
   );
