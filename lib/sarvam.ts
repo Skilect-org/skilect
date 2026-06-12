@@ -1,29 +1,46 @@
 /**
  * Sarvam AI Client
  *
- * Initializes and exports the Sarvam AI client for Indian language processing.
- * Uses environment variables for configuration.
+ * Provides `sarvamFetch()` — a thin authenticated wrapper around the
+ * Sarvam AI REST API for STT (Speech-to-Text) and TTS (Text-to-Speech).
+ *
+ * Usage:
+ *   const res = await sarvamFetch("/speech-to-text", {
+ *     method: "POST",
+ *     body: formData,
+ *   });
  *
  * Required env vars:
  *   SARVAM_API_KEY
- *   SARVAM_API_URL (optional, defaults to production endpoint)
+ *   SARVAM_API_URL  (optional — defaults to https://api.sarvam.ai)
  */
 
-const sarvamApiKey = process.env.SARVAM_API_KEY!;
-const sarvamApiUrl =
-  process.env.SARVAM_API_URL || "https://api.sarvam.ai";
+const sarvamApiKey = process.env.SARVAM_API_KEY;
+const sarvamApiUrl = process.env.SARVAM_API_URL || "https://api.sarvam.ai";
 
-// Helper to make authenticated requests to Sarvam AI
-// export async function sarvamFetch(endpoint: string, options?: RequestInit) {
-//   const url = `${sarvamApiUrl}${endpoint}`;
-//   return fetch(url, {
-//     ...options,
-//     headers: {
-//       "Content-Type": "application/json",
-//       "API-Subscription-Key": sarvamApiKey,
-//       ...options?.headers,
-//     },
-//   });
-// }
+if (!sarvamApiKey) {
+  throw new Error("[Sarvam] Missing SARVAM_API_KEY environment variable");
+}
+
+// ── Authenticated fetch helper ────────────────────────────────────────────────
+export async function sarvamFetch(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const url = `${sarvamApiUrl}${endpoint}`;
+
+  // Merge auth headers — preserve any Content-Type the caller sets
+  // (multipart/form-data for audio uploads must NOT have Content-Type set
+  //  manually, so we only inject it when the caller doesn't include it)
+  const headers = new Headers(options.headers);
+  headers.set("API-Subscription-Key", sarvamApiKey!);
+
+  // Only default Content-Type for non-FormData requests
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return fetch(url, { ...options, headers });
+}
 
 export { sarvamApiKey, sarvamApiUrl };

@@ -1,3 +1,5 @@
+import { SignIn } from "@clerk/nextjs";
+
 export default function SignInPage() {
   return (
     <main className="flex flex-1 items-center justify-center">
@@ -7,6 +9,7 @@ export default function SignInPage() {
           Sign in to your Skilect account
         </p>
         {/* Clerk SignIn component will be placed here */}
+        <SignIn path="/sign-in"/>
       </div>
     </main>
   );

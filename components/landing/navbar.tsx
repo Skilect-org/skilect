@@ -61,14 +61,14 @@ export default function Navbar() {
         {/* ── Right: Actions (desktop) ── */}
         <div className="hidden md:flex items-center gap-6">
           <Link
-            href="/login"
+            href="/sign-in"
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Login
           </Link>
 
           <Link
-            href="/register"
+            href="/sign-up"
             className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm"
           >
             Get Started
@@ -135,7 +135,7 @@ export default function Navbar() {
 
         <div className="mt-4 border-t border-gray-100 pt-4 flex flex-col gap-2">
           <Link
-            href="/login"
+            href="/sign-in"
             onClick={() => setMobileOpen(false)}
             className="flex items-center justify-center rounded-lg px-4 py-3 text-base font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
           >
@@ -143,7 +143,7 @@ export default function Navbar() {
           </Link>
 
           <Link
-            href="/register"
+            href="/sign-up"
             onClick={() => setMobileOpen(false)}
             className="flex items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
           >
