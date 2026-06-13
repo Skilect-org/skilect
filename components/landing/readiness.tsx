@@ -54,7 +54,7 @@ export default function Readiness() {
                 The Skilect Standard
               </span>
               <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Know Exactly When You're Ready to Apply.
+                Know Exactly When You&apos;re Ready to Apply.
               </h2>
             </div>
             

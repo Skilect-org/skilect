@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
         contents: [
           { 
             role: "user", 
-            parts: [{ text: buildPrompt(targetRole, skillGaps) }] 
+            parts: [{ text: buildPrompt(targetRole, orderedSkills) }] 
           }
         ],
         generationConfig: {
@@ -196,8 +196,9 @@ export async function POST(request: NextRequest) {
       const cleanJsonString = responseText.replace(/^```json\s*|```$/gi, "").trim();
       
       roadmapData = RoadmapOutputSchema.parse(JSON.parse(cleanJsonString));
-    } catch (error: any) {
-      console.warn("[/api/roadmaps/generate] Gemini Limit Hit or Error. Deploying Mock Fallback Architecture.", error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn("[/api/roadmaps/generate] Gemini Limit Hit or Error. Deploying Mock Fallback Architecture.", errorMessage);
 
       roadmapData = {
         title: `${targetRole} Preparation Path`,

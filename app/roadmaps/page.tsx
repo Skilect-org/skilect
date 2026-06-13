@@ -3,9 +3,30 @@
 import { useState } from "react";
 import { RoadmapCard, RoadmapTimeline } from "@/components/roadmaps";
 
+interface RoadmapNode {
+  id: string;
+  name: string;
+  description: string;
+  level: "beginner" | "intermediate" | "advanced";
+  estimatedDays: number;
+  resources: {
+    title: string;
+    url: string;
+    type: "article" | "video" | "course" | "documentation";
+  }[];
+}
+
+interface Roadmap {
+  id: string;
+  title: string;
+  description: string;
+  estimatedWeeks: number;
+  nodes: RoadmapNode[];
+}
+
 export default function RoadmapsPage() {
   const [loading, setLoading] = useState(false);
-  const [roadmapData, setRoadmapData] = useState<any>(null);
+  const [roadmapData, setRoadmapData] = useState<Roadmap | null>(null);
   const [error, setError] = useState("");
 
   // This function tests your backend API endpoint
@@ -31,8 +52,9 @@ export default function RoadmapsPage() {
 
       const data = await response.json();
       setRoadmapData(data.roadmap);
-    } catch (err: any) {
-      setError(err.message || "Failed to generate roadmap.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate roadmap.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -83,7 +105,7 @@ export default function RoadmapsPage() {
             <h3 className="mb-6 text-lg font-semibold tracking-tight">Your Custom Learning Path</h3>
             <RoadmapTimeline
               // We map your backend 'nodes' array into the format Meet's timeline expects
-              steps={roadmapData.nodes.map((node: any, index: number) => ({
+              steps={roadmapData.nodes.map((node: RoadmapNode, index: number) => ({
                 id: node.id,
                 title: node.name,
                 description: node.description,
