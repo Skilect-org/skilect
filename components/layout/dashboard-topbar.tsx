@@ -24,19 +24,20 @@ interface ActionButton {
   label: string;
   icon: React.ElementType;
   variant: "outline" | "filled";
+  actionId?: string;
 }
 
 const routeActions: Record<string, ActionButton[]> = {
   "/dashboard": [
-    { label: "New Task", icon: Plus, variant: "outline" },
+    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
     { label: "Generate Roadmap", icon: Sparkles, variant: "filled" },
   ],
   "/tasks": [
-    { label: "New Task", icon: Plus, variant: "outline" },
-    { label: "Generate Roadmap", icon: Sparkles, variant: "filled" },
+    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
+    { label: "Generate Tasks with AI", icon: Sparkles, variant: "filled" },
   ],
   "/roadmaps": [
-    { label: "New Task", icon: Plus, variant: "outline" },
+    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
     { label: "Generate Roadmap", icon: Sparkles, variant: "filled" },
   ],
 };
@@ -70,11 +71,18 @@ export function DashboardTopbar() {
         {actions.map((action) => {
           const Icon = action.icon;
 
+          const handleActionClick = () => {
+            if (action.actionId === "new-task") {
+              window.dispatchEvent(new CustomEvent("open-new-task-drawer"));
+            }
+          };
+
           if (action.variant === "outline") {
             return (
               <button
                 key={action.label}
                 type="button"
+                onClick={handleActionClick}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-blue-600 transition-all duration-200 hover:border-blue-200 hover:bg-blue-50 active:scale-[0.98]"
               >
                 <Icon size={14} strokeWidth={2} />
@@ -87,6 +95,7 @@ export function DashboardTopbar() {
             <button
               key={action.label}
               type="button"
+              onClick={handleActionClick}
               className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]"
               style={{
                 background:
