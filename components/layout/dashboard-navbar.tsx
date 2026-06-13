@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { UserButton } from "@clerk/nextjs";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -36,13 +37,13 @@ export function DashboardNavbar() {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          {/* Clerk UserButton will be placed here */}
           <Link
             href="/settings"
             className="text-sm text-foreground/60 hover:text-foreground"
           >
             Settings
           </Link>
+          <UserButton />
         </div>
       </nav>
     </header>

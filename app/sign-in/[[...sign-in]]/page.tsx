@@ -9,8 +9,8 @@ export default function SignInPage() {
           Sign in to your Skilect account
         </p>
         {/* Clerk SignIn component will be placed here */}
-        <SignIn path="/sign-in" fallbackRedirectUrl="/dashboard" />
+        <SignIn path="/sign-in" fallbackRedirectUrl="/assessment" />
       </div>
-    </main>
+    </main> 
   );
 }

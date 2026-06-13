@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useUser,
+} from "@clerk/nextjs";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -12,6 +18,7 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { isSignedIn } = useUser();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -60,19 +67,23 @@ export default function Navbar() {
 
         {/* ── Right: Actions (desktop) ── */}
         <div className="hidden md:flex items-center gap-6">
-          <Link
-            href="/sign-in"
-            className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-          >
-            Login
-          </Link>
+          {!isSignedIn ? (
+            <>
+              <SignInButton>
+                <button className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+                  Login
+                </button>
+              </SignInButton>
 
-          <Link
-            href="/sign-up"
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm"
-          >
-            Get Started
-          </Link>
+              <SignUpButton>
+                <button className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm">
+                  Get Started
+                </button>
+              </SignUpButton>
+            </>
+          ) : (
+            <UserButton />
+          )}
         </div>
 
         {/* ── Hamburger (mobile) ── */}
@@ -134,21 +145,33 @@ export default function Navbar() {
         </ul>
 
         <div className="mt-4 border-t border-gray-100 pt-4 flex flex-col gap-2">
-          <Link
-            href="/sign-in"
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center justify-center rounded-lg px-4 py-3 text-base font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
-          >
-            Login
-          </Link>
+          <div className="flex flex-col gap-2 px-4">
+            {!isSignedIn ? (
+              <>
+                <SignInButton>
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="flex w-full items-center justify-center rounded-lg px-4 py-3 text-base font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    Login
+                  </button>
+                </SignInButton>
 
-          <Link
-            href="/sign-up"
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
-          >
-            Get Started
-          </Link>
+                <SignUpButton>
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
+                  >
+                    Get Started
+                  </button>
+                </SignUpButton>
+              </>
+            ) : (
+              <div className="flex w-full items-center justify-center">
+                <UserButton />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
