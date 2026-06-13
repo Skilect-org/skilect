@@ -1,3 +1,5 @@
+import { SignUp } from "@clerk/nextjs";
+
 export default function SignUpPage() {
   return (
     <main className="flex flex-1 items-center justify-center">
@@ -7,6 +9,7 @@ export default function SignUpPage() {
           Create your Skilect account
         </p>
         {/* Clerk SignUp component will be placed here */}
+        <SignUp path="/sign-up" fallbackRedirectUrl="/" />
       </div>
     </main>
   );

@@ -1,23 +1,29 @@
 /**
  * Gemini Flash AI Client
  *
- * Initializes and exports the Google Gemini AI client.
- * Uses environment variables for configuration.
+ * Exports a helper to get the Gemini 2.0 Flash model instance.
+ * Always call `getGeminiFlashModel()` per request — the underlying
+ * GoogleGenerativeAI instance is a singleton.
  *
  * Required env vars:
  *   GEMINI_API_KEY
  */
 
-// TODO: Install @google/generative-ai and uncomment
-// import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const geminiApiKey = process.env.GEMINI_API_KEY!;
+const geminiApiKey = process.env.GEMINI_API_KEY;
 
-// export const genAI = new GoogleGenerativeAI(geminiApiKey);
+if (!geminiApiKey) {
+  throw new Error("[Gemini] Missing GEMINI_API_KEY environment variable");
+}
 
-// Helper to get the Gemini Flash model
-// export function getGeminiFlashModel() {
-//   return genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-// }
+// Singleton instance — one per server process
+const genAI = new GoogleGenerativeAI(geminiApiKey);
+
+// ── Model helper ─────────────────────────────────────────────────────────────
+// Returns the Gemini 2.0 Flash model ready for generateContent() calls.
+export function getGeminiFlashModel() {
+  return genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+}
 
 export { geminiApiKey };

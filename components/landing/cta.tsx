@@ -10,7 +10,7 @@ export default function CTA() {
         </p>
         <div className="mt-8 flex justify-center">
           <a
-            href="/register"
+            href="/sign-up"
             className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:bg-blue-800"
           >
             Get Started For Free
