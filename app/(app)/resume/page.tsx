@@ -183,6 +183,11 @@ export default function ResumePage() {
               type="file" 
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               accept=".pdf,.doc,.docx"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  alert(`Selected ${e.target.files[0].name} for upload.`);
+                }
+              }}
             />
           </div>
         </div>
@@ -414,11 +419,17 @@ export default function ResumePage() {
             </div>
             
             <div className="flex w-full sm:w-auto items-center gap-3">
-              <button className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]">
+              <button 
+                onClick={() => alert("Roadmap generation is coming soon!")}
+                className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]"
+              >
                 <Map size={16} className="text-blue-500" />
                 Generate Roadmap
               </button>
-              <button className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-gray-800 active:scale-[0.98]">
+              <button 
+                onClick={() => alert("Task generation is coming soon!")}
+                className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-gray-800 active:scale-[0.98]"
+              >
                 <ListChecks size={16} className="text-violet-400" />
                 Generate Tasks
                 <ArrowRight size={14} className="ml-1 opacity-70" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Code2, Users, Layers, UploadCloud, FileText, Trash2, ChevronDown, Sparkles, Calendar, ChevronRight, X, Trophy, TrendingUp, Target, Briefcase, Gauge } from "lucide-react";
 import { InterviewType, ROLES, SetupData } from "../types";
 
@@ -61,7 +62,9 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
           1. Interview Type
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setSelectedType("technical")}
             className={`group relative flex flex-col items-start rounded-2xl border p-5 transition-all duration-200 text-left ${
               selectedType === "technical"
@@ -83,9 +86,11 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
             {selectedType === "technical" && (
               <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-blue-600" />
             )}
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setSelectedType("hr")}
             className={`group relative flex flex-col items-start rounded-2xl border p-5 transition-all duration-200 text-left ${
               selectedType === "hr"
@@ -107,9 +112,11 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
             {selectedType === "hr" && (
               <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-blue-600" />
             )}
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setSelectedType("mixed")}
             className={`group relative flex flex-col items-start rounded-2xl border p-5 transition-all duration-200 text-left ${
               selectedType === "mixed"
@@ -131,7 +138,7 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
             {selectedType === "mixed" && (
               <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-blue-600" />
             )}
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -334,7 +341,10 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
                       <Calendar size={12} />
                       <span>{item.date}</span>
                     </div>
-                    <button className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 transition-colors hover:text-blue-700">
+                    <button 
+                      onClick={() => alert("Feedback view coming soon!")}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 transition-colors hover:text-blue-700"
+                    >
                       View Feedback
                       <ChevronRight size={12} />
                     </button>
@@ -356,64 +366,78 @@ export function InterviewSetup({ onStart }: InterviewSetupProps) {
       </div>
 
       {/* ── All History Modal ────────────────────────────────────────── */}
-      {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div 
-            className="flex flex-col w-full max-w-2xl max-h-[85vh] rounded-2xl bg-white shadow-xl animate-in slide-in-from-bottom-4 duration-300"
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4"
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <div>
-                <h2 className="text-[15px] font-semibold text-gray-900">
-                  All Interview History
-                </h2>
-                <p className="mt-0.5 text-[12px] text-gray-500">
-                  Review your past mock interviews and their feedback.
-                </p>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="flex flex-col w-full max-w-2xl max-h-[85vh] rounded-2xl bg-white shadow-xl"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                  <h2 className="text-[15px] font-semibold text-gray-900">
+                    All Interview History
+                  </h2>
+                  <p className="mt-0.5 text-[12px] text-gray-500">
+                    Review your past mock interviews and their feedback.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => setIsHistoryOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="flex flex-col divide-y divide-gray-50">
-                {mockHistory.map((item) => (
-                  <div key={item.id} className="group flex flex-col p-4 transition-colors hover:bg-gray-50/50 rounded-xl">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-[14px] font-semibold text-gray-900">
-                          {item.type}
-                        </p>
-                        <p className="mt-1 text-[12px] font-medium text-gray-500">
-                          {item.role}
-                        </p>
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-2">
+                <div className="flex flex-col divide-y divide-gray-50">
+                  {mockHistory.map((item) => (
+                    <div key={item.id} className="group flex flex-col p-4 transition-colors hover:bg-gray-50/50 rounded-xl">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-[14px] font-semibold text-gray-900">
+                            {item.type}
+                          </p>
+                          <p className="mt-1 text-[12px] font-medium text-gray-500">
+                            {item.role}
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[12px] font-bold text-gray-700">
+                          {item.score}%
+                        </span>
                       </div>
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[12px] font-bold text-gray-700">
-                        {item.score}%
-                      </span>
-                    </div>
-                    
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
-                        <Calendar size={14} />
-                        <span>{item.date}</span>
+                      
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
+                          <Calendar size={14} />
+                          <span>{item.date}</span>
+                        </div>
+                        <button 
+                          onClick={() => alert("Feedback view coming soon!")}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                        >
+                          View Feedback
+                        </button>
                       </div>
-                      <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50">
-                        View Feedback
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

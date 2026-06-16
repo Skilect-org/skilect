@@ -74,6 +74,8 @@ export function DashboardTopbar() {
           const handleActionClick = () => {
             if (action.actionId === "new-task") {
               window.dispatchEvent(new CustomEvent("open-new-task-drawer"));
+            } else {
+              alert(`${action.label} is coming soon!`);
             }
           };
 

@@ -252,15 +252,24 @@ function CodingWorkspace({ currentQ, answers, setAnswers }: { currentQ: MockQues
               Python 3
               <ChevronDown size={14} className="text-gray-400 ml-1" />
             </button>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors" title="Reset Code">
+            <button 
+              onClick={() => alert("Code reset coming soon")}
+              className="text-gray-400 hover:text-gray-600 transition-colors" title="Reset Code"
+            >
               <RefreshCcw size={14} />
             </button>
           </div>
           <div className="flex items-center gap-3 text-gray-400">
-            <button className="hover:text-gray-600 transition-colors">
+            <button 
+              onClick={() => alert("Editor settings coming soon")}
+              className="hover:text-gray-600 transition-colors"
+            >
               <Settings size={15} />
             </button>
-            <button className="hover:text-gray-600 transition-colors">
+            <button 
+              onClick={() => alert("Fullscreen mode coming soon")}
+              className="hover:text-gray-600 transition-colors"
+            >
               <Maximize size={15} />
             </button>
           </div>
@@ -322,11 +331,17 @@ function CodingWorkspace({ currentQ, answers, setAnswers }: { currentQ: MockQues
 
             {/* Run / Submit Bar */}
             <div className="flex items-center justify-end gap-3 pt-2 mt-2">
-              <button className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-5 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100">
+              <button 
+                onClick={() => alert("Running code...")}
+                className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-5 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+              >
                 <Play size={14} className="text-gray-500" />
                 Run Code
               </button>
-              <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-[13px] font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30">
+              <button 
+                onClick={() => alert("Solution submitted!")}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-[13px] font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30"
+              >
                 <CloudUpload size={14} />
                 Submit Solution
               </button>
