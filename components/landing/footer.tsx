@@ -3,18 +3,18 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-gray-200 bg-white py-8">
+    <footer className="bg-[#f8f9fc] py-8">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
         
         {/* Left: Brand & Copyright */}
         <div className="flex flex-col items-center md:items-start gap-1">
           <Link href="/" className="flex items-center gap-1.5 select-none mb-2">
             <Image
-              src="/logo/skilect-logo.png"
+              src="/logo/brand-logo.png"
               alt="Skilect Logo"
-              width={150}
-              height={50}
-              className="h-10 w-auto object-contain"
+              width={200}
+              height={70}
+              className="h-14 w-auto object-contain"
             />
           </Link>
           <p className="text-[11px] text-gray-400">

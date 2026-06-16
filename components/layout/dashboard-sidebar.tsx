@@ -51,6 +51,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* ── Brand Logo ────────────────────────────────────────────── */}
+      <div className="flex items-center px-6 pt-6 pb-2">
+        <Link href="/dashboard" onClick={onNavigate}>
+          <Image
+            src="/logo/brand-logo.png"
+            alt="Skilect Logo"
+            width={180}
+            height={50}
+            className="h-11 w-auto object-contain transition-transform hover:scale-[1.02] active:scale-95"
+            priority
+          />
+        </Link>
+      </div>
+
       {/* ── User card ────────────────────────────────────────────── */}
       <div className="mx-4 mt-5 mb-2">
         <div

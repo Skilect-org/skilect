@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   UploadCloud,
   FileText,
@@ -133,12 +135,31 @@ export default function ResumePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
 
+  const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+
   const handleAnalyze = () => {
     setIsAnalyzing(true);
     // Simulate API call
     setTimeout(() => {
       setIsAnalyzing(false);
       setIsAnalyzed(true);
+    }, 2000);
+  };
+
+  const handleGenerateRoadmap = () => {
+    setIsGeneratingRoadmap(true);
+    setTimeout(() => {
+      setIsGeneratingRoadmap(false);
+      alert("Roadmap generation is coming soon!");
+    }, 1500);
+  };
+
+  const handleGenerateTasks = () => {
+    setIsGeneratingTasks(true);
+    setTimeout(() => {
+      setIsGeneratingTasks(false);
+      alert("Task generation is coming soon!");
     }, 1500);
   };
 
@@ -183,6 +204,11 @@ export default function ResumePage() {
               type="file" 
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               accept=".pdf,.doc,.docx"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  alert(`Selected ${e.target.files[0].name} for upload.`);
+                }
+              }}
             />
           </div>
         </div>
@@ -230,204 +256,289 @@ export default function ResumePage() {
       </div>
 
       {/* ── Analysis Results ───────────────────────────────────────── */}
-      {isAnalyzed && (
-        <div className="mt-4 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          
-          {/* Main Scores & Verdict */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Scores (Spans 2 cols) */}
-            <div
-              className="flex flex-col sm:flex-row items-center justify-center gap-12 rounded-2xl border border-gray-100 bg-white p-8 lg:col-span-2"
-              style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-            >
-              <CircularProgress
-                score={mockAnalysis.resumeScore}
-                label="Overall Resume Score"
-                colorClass="text-blue-500"
-              />
-              <div className="hidden sm:block h-32 w-px bg-gray-100" />
-              <CircularProgress
-                score={mockAnalysis.atsScore}
-                label="ATS Match Score"
-                colorClass="text-violet-500"
-              />
-            </div>
-
-            {/* Final Verdict */}
-            <div
-              className="flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-8"
-              style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 mb-4">
-                <CheckCircle2 size={24} className="text-emerald-600" />
+      {/* ── Analysis Results ───────────────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        {isAnalyzing && (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mt-4 flex flex-col gap-6"
+          >
+            {/* Main Scores Skeleton */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-12 rounded-2xl border border-gray-100 bg-white p-8 lg:col-span-2">
+                <Skeleton className="h-[140px] w-[140px] rounded-full" />
+                <div className="hidden sm:block h-32 w-px bg-gray-100" />
+                <Skeleton className="h-[140px] w-[140px] rounded-full" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">
-                {mockAnalysis.verdict}
-              </h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-gray-500">
-                {mockAnalysis.verdictDescription}
-              </p>
+              <div className="flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-8">
+                <Skeleton className="h-12 w-12 rounded-full mb-4" />
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
             </div>
-          </div>
 
-          {/* Section Scores & Action Items */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            
-            {/* Left Col: Section Scores */}
-            <div
-              className="rounded-2xl border border-gray-100 bg-white p-6 lg:col-span-1"
-              style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-            >
-              <h3 className="text-sm font-semibold text-gray-900 mb-5">
-                Section Analysis
-              </h3>
-              <div className="space-y-4">
-                {mockAnalysis.sectionScores.map((section) => {
-                  const Icon = section.icon;
-                  return (
-                    <div key={section.label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <Icon size={14} className="text-gray-400" />
-                          <span className="text-[13px] font-medium text-gray-700">
-                            {section.label}
-                          </span>
-                        </div>
-                        <span className="text-[12px] font-semibold text-gray-900">
-                          {section.score}/100
-                        </span>
+            {/* Sections Skeleton */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 lg:col-span-1">
+                <Skeleton className="h-5 w-1/2 mb-5" />
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between mb-1.5">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-8" />
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                        <div
-                          className={`h-full rounded-full transition-all duration-1000 ${section.color}`}
-                          style={{ width: `${section.score}%` }}
-                        />
-                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-4 lg:col-span-2">
+                <div className="rounded-2xl border border-gray-100 bg-white p-6">
+                  <Skeleton className="h-32 w-full" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Skeleton className="h-48 w-full rounded-2xl" />
+                  <Skeleton className="h-48 w-full rounded-2xl" />
+                </div>
               </div>
             </div>
+          </motion.div>
+        )}
 
-            {/* Right Col: Skills & Suggestions */}
-            <div className="grid gap-4 lg:col-span-2">
-              
-              {/* Skills Card */}
+        {isAnalyzed && !isAnalyzing && (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 flex flex-col gap-6"
+          >
+            {/* Main Scores & Verdict */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Scores (Spans 2 cols) */}
               <div
-                className="rounded-2xl border border-gray-100 bg-white p-6"
+                className="flex flex-col sm:flex-row items-center justify-center gap-12 rounded-2xl border border-gray-100 bg-white p-8 lg:col-span-2"
                 style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
               >
-                <div className="grid gap-6 md:grid-cols-2">
-                  {/* Detected Skills */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-emerald-500" />
-                      Detected Skills
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {mockAnalysis.detectedSkills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                <CircularProgress
+                  score={mockAnalysis.resumeScore}
+                  label="Overall Resume Score"
+                  colorClass="text-blue-500"
+                />
+                <div className="hidden sm:block h-32 w-px bg-gray-100" />
+                <CircularProgress
+                  score={mockAnalysis.atsScore}
+                  label="ATS Match Score"
+                  colorClass="text-violet-500"
+                />
+              </div>
 
-                  {/* Missing Skills */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <AlertTriangle size={16} className="text-amber-500" />
-                      Missing from JD
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {mockAnalysis.missingSkills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 border border-amber-200/50"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+              {/* Final Verdict */}
+              <div
+                className="flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-8"
+                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 mb-4">
+                  <CheckCircle2 size={24} className="text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {mockAnalysis.verdict}
+                </h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-gray-500">
+                  {mockAnalysis.verdictDescription}
+                </p>
+              </div>
+            </div>
+
+            {/* Section Scores & Action Items */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              
+              {/* Left Col: Section Scores */}
+              <div
+                className="rounded-2xl border border-gray-100 bg-white p-6 lg:col-span-1"
+                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              >
+                <h3 className="text-sm font-semibold text-gray-900 mb-5">
+                  Section Analysis
+                </h3>
+                <div className="space-y-4">
+                  {mockAnalysis.sectionScores.map((section) => {
+                    const Icon = section.icon;
+                    return (
+                      <div key={section.label}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <Icon size={14} className="text-gray-400" />
+                            <span className="text-[13px] font-medium text-gray-700">
+                              {section.label}
+                            </span>
+                          </div>
+                          <span className="text-[12px] font-semibold text-gray-900">
+                            {section.score}/100
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-1000 ${section.color}`}
+                            style={{ width: `${section.score}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Feedback Card */}
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Strengths */}
-                <div
-                  className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-6"
-                >
-                  <h3 className="text-sm font-semibold text-emerald-900 mb-4">
-                    Resume Strengths
-                  </h3>
-                  <ul className="space-y-3">
-                    {mockAnalysis.strengths.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[13px] text-emerald-800">
-                        <CheckCircle2 size={16} className="shrink-0 text-emerald-500 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Suggestions */}
+              {/* Right Col: Skills & Suggestions */}
+              <div className="grid gap-4 lg:col-span-2">
+                
+                {/* Skills Card */}
                 <div
                   className="rounded-2xl border border-gray-100 bg-white p-6"
                   style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                 >
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                    Actionable Improvements
-                  </h3>
-                  <ul className="space-y-3">
-                    {mockAnalysis.suggestions.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[13px] text-gray-600">
-                        <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
-                          <span className="text-[9px] font-bold text-blue-700">{i + 1}</span>
-                        </div>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {/* Detected Skills */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-500" />
+                        Detected Skills
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {mockAnalysis.detectedSkills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Missing Skills */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-amber-500" />
+                        Missing from JD
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {mockAnalysis.missingSkills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 border border-amber-200/50"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Feedback Card */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Strengths */}
+                  <div
+                    className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-6"
+                  >
+                    <h3 className="text-sm font-semibold text-emerald-900 mb-4">
+                      Resume Strengths
+                    </h3>
+                    <ul className="space-y-3">
+                      {mockAnalysis.strengths.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[13px] text-emerald-800">
+                          <CheckCircle2 size={16} className="shrink-0 text-emerald-500 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Suggestions */}
+                  <div
+                    className="rounded-2xl border border-gray-100 bg-white p-6"
+                    style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                  >
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                      Actionable Improvements
+                    </h3>
+                    <ul className="space-y-3">
+                      {mockAnalysis.suggestions.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[13px] text-gray-600">
+                          <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                            <span className="text-[9px] font-bold text-blue-700">{i + 1}</span>
+                          </div>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
               </div>
-
             </div>
-          </div>
 
-          {/* ── Action Integration Section ─────────────────────────────── */}
-          <div
-            className="mt-2 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white p-6"
-            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-          >
-            <div>
-              <h3 className="text-[15px] font-semibold text-gray-900">
-                Ready to improve?
-              </h3>
-              <p className="mt-1 text-[13px] text-gray-500">
-                Turn these suggestions into actionable tasks or create a learning roadmap.
-              </p>
+            {/* ── Action Integration Section ─────────────────────────────── */}
+            <div
+              className="mt-2 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white p-6"
+              style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              <div>
+                <h3 className="text-[15px] font-semibold text-gray-900">
+                  Ready to improve?
+                </h3>
+                <p className="mt-1 text-[13px] text-gray-500">
+                  Turn these suggestions into actionable tasks or create a learning roadmap.
+                </p>
+              </div>
+              
+              <div className="flex w-full sm:w-auto items-center gap-3">
+                <button 
+                  onClick={handleGenerateRoadmap}
+                  disabled={isGeneratingRoadmap}
+                  className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-70"
+                >
+                  {isGeneratingRoadmap ? (
+                    <>
+                      <Sparkles size={16} className="text-blue-500 animate-pulse" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Map size={16} className="text-blue-500" />
+                      Generate Roadmap
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={handleGenerateTasks}
+                  disabled={isGeneratingTasks}
+                  className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-70"
+                >
+                  {isGeneratingTasks ? (
+                    <>
+                      <Sparkles size={16} className="text-violet-400 animate-pulse" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <ListChecks size={16} className="text-violet-400" />
+                      Generate Tasks
+                      <ArrowRight size={14} className="ml-1 opacity-70" />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-            
-            <div className="flex w-full sm:w-auto items-center gap-3">
-              <button className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]">
-                <Map size={16} className="text-blue-500" />
-                Generate Roadmap
-              </button>
-              <button className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-gray-800 active:scale-[0.98]">
-                <ListChecks size={16} className="text-violet-400" />
-                Generate Tasks
-                <ArrowRight size={14} className="ml-1 opacity-70" />
-              </button>
-            </div>
-          </div>
 
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

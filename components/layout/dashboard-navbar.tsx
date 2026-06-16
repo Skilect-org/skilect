@@ -17,11 +17,11 @@ export function DashboardNavbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center">
           <Image
-            src="/logo/skilect-logo.png"
+            src="/logo/brand-logo.png"
             alt="Skilect Logo"
-            width={150}
-            height={50}
-            className="h-10 w-auto object-contain"
+            width={200}
+            height={70}
+            className="h-14 w-auto object-contain"
             priority
           />
         </Link>

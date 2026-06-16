@@ -16,11 +16,11 @@ export function AssessmentLayout({ children }: AssessmentLayoutProps) {
         <div className="flex items-center justify-between mb-10">
           <Link href="/" className="flex items-center gap-2 select-none">
             <Image
-              src="/logo/skilect-logo.png"
+              src="/logo/brand-logo.png"
               alt="Skilect Logo"
-              width={180}
-              height={60}
-              className="h-10 w-auto object-contain"
+              width={200}
+              height={70}
+              className="h-14 w-auto object-contain"
               priority
             />
           </Link>

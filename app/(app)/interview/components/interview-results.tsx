@@ -205,11 +205,17 @@ export function InterviewResults({ onRetake }: InterviewResultsProps) {
           <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
             <h3 className="text-[15px] font-semibold text-gray-900 mb-4">Next Steps</h3>
             <div className="grid gap-3 sm:grid-cols-3">
-              <button className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-4 transition-all hover:bg-gray-50 hover:border-blue-200 active:scale-[0.98]">
+              <button 
+                onClick={() => alert("Roadmap generation is coming soon!")}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-4 transition-all hover:bg-gray-50 hover:border-blue-200 active:scale-[0.98]"
+              >
                 <Map size={20} className="text-blue-500" />
                 <span className="text-[13px] font-medium text-gray-700">Generate Roadmap</span>
               </button>
-              <button className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gray-900 p-4 transition-all hover:bg-gray-800 active:scale-[0.98]">
+              <button 
+                onClick={() => alert("Improvement tasks generation is coming soon!")}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gray-900 p-4 transition-all hover:bg-gray-800 active:scale-[0.98]"
+              >
                 <ListChecks size={20} className="text-violet-400" />
                 <span className="text-[13px] font-medium text-white">Improvement Tasks</span>
               </button>

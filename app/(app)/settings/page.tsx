@@ -31,6 +31,40 @@ export default function SettingsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  
+  // Local states for button interactivity
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [showOtherSession, setShowOtherSession] = useState(true);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSaveProfile = () => {
+    setIsSavingProfile(true);
+    setTimeout(() => setIsSavingProfile(false), 1000);
+  };
+
+  const handleUpdatePassword = () => {
+    setIsUpdatingPassword(true);
+    setTimeout(() => setIsUpdatingPassword(false), 1000);
+  };
+
+  const handleRevokeSession = () => {
+    setIsRevoking(true);
+    setTimeout(() => {
+      setIsRevoking(false);
+      setShowOtherSession(false);
+    }, 800);
+  };
+
+  const handleDeleteAccount = () => {
+    setIsDeleting(true);
+    setTimeout(() => {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      alert("Account deleted successfully (Demo)");
+    }, 1500);
+  };
 
   return (
     <main className="flex flex-1 flex-col p-6 max-w-4xl mx-auto w-full gap-8">
@@ -59,11 +93,11 @@ export default function SettingsPage() {
               </div>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <Button variant="secondary" size="sm" className="gap-2">
+                  <Button variant="secondary" size="sm" className="gap-2" onClick={() => alert("Upload dialog opened")}>
                     <Camera className="h-4 w-4" />
                     Change Photo
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50">
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50" onClick={() => alert("Photo removed")}>
                     Remove Photo
                   </Button>
                 </div>
@@ -97,7 +131,9 @@ export default function SettingsPage() {
             </div>
           </CardContent>
           <CardFooter className="justify-end">
-            <Button>Save Changes</Button>
+            <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+              {isSavingProfile ? "Saving..." : "Save Changes"}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -133,7 +169,9 @@ export default function SettingsPage() {
                   placeholder="••••••••"
                 />
               </div>
-              <Button variant="secondary">Update Password</Button>
+              <Button variant="secondary" onClick={handleUpdatePassword} disabled={isUpdatingPassword}>
+                {isUpdatingPassword ? "Updating..." : "Update Password"}
+              </Button>
             </div>
 
             <div className="h-px bg-foreground/10" />
@@ -203,29 +241,37 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Other Session */}
-                <div className="flex items-center justify-between rounded-lg border border-foreground/10 p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/5">
-                      <Smartphone className="h-5 w-5 text-foreground/70" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-foreground">
-                        iPhone 13 - Safari
-                      </p>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-foreground/60">
-                        <span className="flex items-center gap-1">
-                          <Globe className="h-3 w-3" /> New York, NY
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> 2 days ago
-                        </span>
+                {showOtherSession && (
+                  <div className="flex items-center justify-between rounded-lg border border-foreground/10 p-4 transition-all duration-300">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/5">
+                        <Smartphone className="h-5 w-5 text-foreground/70" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-foreground">
+                          iPhone 13 - Safari
+                        </p>
+                        <div className="mt-1 flex items-center gap-3 text-xs text-foreground/60">
+                          <span className="flex items-center gap-1">
+                            <Globe className="h-3 w-3" /> New York, NY
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> 2 days ago
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleRevokeSession}
+                      disabled={isRevoking}
+                      className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50"
+                    >
+                      {isRevoking ? "Revoking..." : "Revoke"}
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50">
-                    Revoke
-                  </Button>
-                </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -311,14 +357,11 @@ export default function SettingsPage() {
             <Button
               variant="primary"
               className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
-              disabled={deleteConfirmation !== "DELETE"}
-              onClick={() => {
-                // Add actual deletion logic here
-                setDeleteModalOpen(false);
-              }}
+              disabled={deleteConfirmation !== "DELETE" || isDeleting}
+              onClick={handleDeleteAccount}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete My Account
+              {isDeleting ? "Deleting..." : "Delete My Account"}
             </Button>
           </div>
         </div>

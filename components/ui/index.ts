@@ -18,3 +18,4 @@ export { Input } from "./input";
 export { Textarea } from "./textarea";
 export { Modal } from "./modal";
 export { Badge } from "./badge";
+export { Skeleton } from "./skeleton";

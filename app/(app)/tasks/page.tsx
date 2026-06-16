@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   CheckCircle2,
@@ -336,8 +337,13 @@ function TaskCard({
   const SourceIcon = source.icon;
 
   return (
-    <div
-      className={`group rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className={`group rounded-xl border bg-white hover:-translate-y-0.5 hover:shadow-md ${
         task.completed
           ? "border-gray-100 opacity-75"
           : "border-gray-100 hover:border-gray-200"
@@ -448,7 +454,7 @@ function TaskCard({
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -524,23 +530,27 @@ function TaskDrawer({
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${
-          isOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
-        onClick={handleClose}
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            onClick={handleClose}
+          />
 
-      {/* Drawer */}
-      <div
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+          {/* Drawer */}
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl"
+          >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
           <div>
@@ -705,8 +715,10 @@ function TaskDrawer({
             </button>
           </div>
         </form>
-      </div>
-    </>
+      </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -868,21 +880,31 @@ export default function TasksPage() {
       />
 
       {/* ── Task List ────────────────────────────────────────────── */}
-      {filteredTasks.length > 0 ? (
-        <div className="grid gap-3">
-          {filteredTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onToggle={handleToggle}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      ) : (
-        <EmptyState filter={activeFilter} />
-      )}
+      <div className="grid gap-3">
+        <AnimatePresence mode="popLayout">
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onToggle={handleToggle}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <EmptyState filter={activeFilter} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ── Task Drawer (Create / Edit) ──────────────────────────── */}
       <TaskDrawer
