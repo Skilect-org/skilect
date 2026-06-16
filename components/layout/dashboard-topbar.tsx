@@ -55,7 +55,7 @@ export function DashboardTopbar() {
   const actions = routeActions[pathname] ?? [];
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-100 px-6 lg:px-8">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-100 pl-16 pr-6 lg:px-8">
       {/* Left — Greeting */}
       <div>
         <h1 className="text-lg font-semibold text-gray-900">

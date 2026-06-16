@@ -4,8 +4,9 @@ import {
   HowItWorks, 
   Features, 
   Readiness, 
-  Testimonials, 
-  CTA, 
+  Stats,
+  Testimonials,
+  CTA,
   Footer 
 } from "@/components/landing";
   
@@ -17,6 +18,7 @@ export default function Home() {
       <HowItWorks />
       <Features />
       <Readiness />
+      <Stats />
       <Testimonials />
       <CTA />
       <Footer />
