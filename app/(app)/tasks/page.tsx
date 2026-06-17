@@ -38,116 +38,7 @@ interface Task {
   phase?: string;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Mock Data                                                          */
-/* ------------------------------------------------------------------ */
-
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Complete React Hooks Project",
-    completed: false,
-    source: "roadmap",
-    priority: "high",
-    dueDate: "2026-06-15",
-    roadmap: "Full Stack Developer",
-    phase: "React Fundamentals",
-  },
-  {
-    id: "2",
-    title: "Solve 20 Array & String Problems on LeetCode",
-    completed: false,
-    source: "ai-generated",
-    priority: "high",
-    dueDate: "2026-06-14",
-  },
-  {
-    id: "3",
-    title: "Build a REST API with Express and MongoDB",
-    completed: false,
-    source: "roadmap",
-    priority: "medium",
-    dueDate: "2026-06-18",
-    roadmap: "Full Stack Developer",
-    phase: "Backend Development",
-  },
-  {
-    id: "4",
-    title: "Practice System Design — URL Shortener",
-    completed: false,
-    source: "ai-generated",
-    priority: "medium",
-    dueDate: "2026-06-17",
-  },
-  {
-    id: "5",
-    title: "Review Neural Network Fundamentals",
-    completed: false,
-    source: "ai-generated",
-    priority: "low",
-    dueDate: "2026-06-20",
-  },
-  {
-    id: "6",
-    title: "Write Technical Blog Post on React Patterns",
-    completed: false,
-    source: "custom",
-    priority: "low",
-    dueDate: "2026-06-22",
-  },
-  {
-    id: "7",
-    title: "Complete Binary Tree Traversal Set",
-    completed: true,
-    source: "roadmap",
-    priority: "high",
-    dueDate: "2026-06-12",
-    roadmap: "DSA Mastery",
-    phase: "Trees & Graphs",
-  },
-  {
-    id: "8",
-    title: "Setup CI/CD Pipeline with GitHub Actions",
-    completed: true,
-    source: "ai-generated",
-    priority: "medium",
-    dueDate: "2026-06-11",
-  },
-  {
-    id: "9",
-    title: "Mock Interview — Behavioral Round Practice",
-    completed: true,
-    source: "custom",
-    priority: "high",
-    dueDate: "2026-06-10",
-  },
-  {
-    id: "10",
-    title: "Study TCP/IP & Networking Basics",
-    completed: true,
-    source: "ai-generated",
-    priority: "medium",
-    dueDate: "2026-06-10",
-  },
-  {
-    id: "11",
-    title: "Implement Authentication with JWT",
-    completed: true,
-    source: "roadmap",
-    priority: "high",
-    dueDate: "2026-06-09",
-    roadmap: "Full Stack Developer",
-    phase: "Security",
-  },
-  {
-    id: "12",
-    title: "Complete Sorting Algorithms Visualizer",
-    completed: true,
-    source: "ai-generated",
-    priority: "medium",
-    dueDate: "2026-06-08",
-  },
-];
+const initialTasks: Task[] = [];
 
 const filterTabs: { key: FilterTab; label: string }[] = [
   { key: "all", label: "All Tasks" },
@@ -495,21 +386,19 @@ function TaskDrawer({
 
   const [formData, setFormData] = useState<DrawerFormData>(emptyForm);
 
-  /* Sync form when editingTask changes */
-  const prevEditId = useState<string | null>(null);
-  if (editingTask && editingTask.id !== prevEditId[0]) {
-    prevEditId[1](editingTask.id);
-    setFormData({
-      name: editingTask.title,
-      category: editingTask.source,
-      priority: editingTask.priority,
-      dueDate: editingTask.dueDate,
-      description: editingTask.description ?? "",
-    });
-  } else if (!editingTask && prevEditId[0] !== null) {
-    prevEditId[1](null);
-    setFormData(emptyForm);
-  }
+  useEffect(() => {
+    if (editingTask) {
+      setFormData({
+        name: editingTask.title,
+        category: editingTask.source,
+        priority: editingTask.priority,
+        dueDate: editingTask.dueDate,
+        description: editingTask.description ?? "",
+      });
+    } else {
+      setFormData(emptyForm);
+    }
+  }, [editingTask]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
