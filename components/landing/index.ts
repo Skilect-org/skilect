@@ -11,5 +11,6 @@ export { HowItWorks } from "./how-it-works";
 export { default as Features } from "./features";
 export { default as Readiness } from "./readiness";
 export { default as Testimonials } from "./testimonials";
+export { default as Stats } from "./stats";
 export { default as CTA } from "./cta";
 export { default as Footer } from "./footer";

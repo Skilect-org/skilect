@@ -40,11 +40,11 @@ export default function Navbar() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 select-none">
           <Image
-            src="/logo/skilect-logo.png"
+            src="/logo/brand-logo.png"
             alt="Skilect Logo"
-            width={180}
-            height={60}
-            className="h-12 w-auto object-contain"
+            width={220}
+            height={80}
+            className="h-16 w-auto object-contain"
             priority
           />
         </Link>

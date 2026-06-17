@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AssessmentLayout,
   ProgressBar,
@@ -382,7 +384,7 @@ export default function AssessmentPage() {
     // Show the "analyzing" screen briefly, then navigate to results
     setTimeout(() => {
       router.push("/assessment/results");
-    }, 2000);
+    }, 3500);
   };
 
   /* ---------------------------------------------------------------- */
@@ -392,10 +394,20 @@ export default function AssessmentPage() {
   if (isSubmitted) {
     return (
       <AssessmentLayout>
-        <div className="assessment-step-enter flex flex-col items-center justify-center py-20 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center justify-center py-16 text-center w-full"
+        >
           {/* Animated checkmark circle */}
           <div className="relative mb-8">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25"
+            >
               <svg
                 className="w-12 h-12 text-white"
                 fill="none"
@@ -403,48 +415,62 @@ export default function AssessmentPage() {
                 stroke="currentColor"
                 strokeWidth={2.5}
               >
-                <path
+                <motion.path
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-            </div>
-            <div className="absolute -inset-3 rounded-full bg-blue-400/20 animate-ping" />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute -inset-3 rounded-full bg-blue-400/20"
+            />
           </div>
 
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-3xl font-bold tracking-tight text-gray-900"
+          >
             Assessment Complete!
-          </h2>
-          <p className="mt-3 text-base text-gray-500 max-w-md">
-            We&apos;re analyzing your profile with AI to generate a personalized
-            roadmap. This usually takes a few seconds.
-          </p>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-3 text-base text-gray-500 max-w-md mx-auto"
+          >
+            We&apos;re analyzing your profile with AI to generate a personalized roadmap.
+          </motion.p>
 
-          {/* Loading indicator */}
-          <div className="mt-8 flex items-center gap-2 text-sm font-medium text-blue-600">
-            <svg
-              className="w-4 h-4 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Generating your personalized analysis…
-          </div>
-        </div>
+          {/* Skeletons representing generated dashboard building up */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mt-12 w-full max-w-md mx-auto bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col gap-4 text-left"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Skeleton className="h-10 w-10 rounded-full bg-blue-50" />
+              <div className="flex-1">
+                <Skeleton className="h-3 w-1/3 mb-2" />
+                <Skeleton className="h-2 w-1/4" />
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              <Skeleton className="h-2 w-full" />
+              <Skeleton className="h-2 w-[85%]" />
+              <Skeleton className="h-2 w-[60%]" />
+            </div>
+          </motion.div>
+        </motion.div>
       </AssessmentLayout>
     );
   }
