@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getGeminiFlashModel } from "@/lib/gemini";
 import { runNeo4jQuery } from "@/lib/neo4j";
 import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 // ── 1. VALIDATION SCHEMAS ───────────────────────────────────────────────────
 
@@ -87,13 +88,13 @@ The JSON response must precisely follow this structure:
       "id": "string-kebab-case-id",
       "name": "String - Specific Skill Name",
       "description": "String - What the student needs to learn and focus on",
-      "level": "beginner", 
-      "estimatedDays": 5,
+      "level": "beginner" | "intermediate" | "advanced", 
+      "estimatedDays": number,
       "resources": [
         {
           "title": "String - Resource Name",
           "url": "String - Valid reference URL",
-          "type": "documentation"
+          "type": "article" | "video" | "course" | "documentation"
         }
       ]
     }
@@ -142,33 +143,32 @@ export async function POST(request: NextRequest) {
     // B. Validate Incoming Request Structure
     const jsonBody = await request.json();
     const { targetRole, skillGaps } = RequestSchema.parse(jsonBody);
+    const db = createServerSupabaseClient();
 
     // ── INTEGRATED: LAZY ONBOARDING STEP WITH ERROR VERIFICATION ────────────
-    const { data: userCheck } = await authenticatedSupabase
+  const { data: existingUser } = await db
       .from("users")
       .select("id")
-      .eq("id", userId)
+      .eq("clerk_id", userId)
       .single();
 
-    if (!userCheck) {
-      console.log(`👤 Synchronizing profile row data for user: ${userId}`);
-      
-      const emailAddress = clerkUser?.emailAddresses[0]?.emailAddress || "developer@student.com";
-      const userFullName = `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() || "Developer Student";
+    if (!existingUser) {
+      const clerkUser = await currentUser();
+      const email = clerkUser?.emailAddresses[0]?.emailAddress ?? "";
+      const firstName = clerkUser?.firstName ?? "";
+      const lastName = clerkUser?.lastName ?? "";
 
-      const { error: onboardingError } = await authenticatedSupabase
-        .from("users")
-        .insert({ 
-          id: userId,
-          email: emailAddress,        // Fulfills required 'email' column constraint
-          full_name: userFullName,    // Fulfills required 'full_name' column constraint
-        });
+      const { error: upsertError } = await db.from("users").insert({
+        clerk_id: userId,
+        email,
+        first_name: firstName,
+        last_name: lastName,
+      });
 
-      if (onboardingError) {
-        console.error("❌ CRITICAL: USERS TABLE PROFILE WRITE FAILURE:", onboardingError);
-        return NextResponse.json({ error: "Failed to allocate account profile row structure", details: onboardingError }, { status: 500 });
+      if (upsertError) {
+        console.error("[/api/roadmaps/generate] User upsert error:", upsertError);
+        // Non-fatal — continue, roadmap save may still work if FK is optional
       }
-      console.log("✅ User profile successfully written to Supabase under RLS validation!");
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -268,9 +268,10 @@ export async function POST(request: NextRequest) {
       status: index === 0 ? "in_progress" : "todo",
     }));
 
-    const { error: nodesError } = await authenticatedSupabase
+    const { data: insertedNodes, error: nodesError } = await authenticatedSupabase
       .from("tasks")
-      .insert(nodeRows);
+      .insert(nodeRows)
+      .select("*");
 
     if (nodesError) {
       console.error("[/api/roadmaps/generate] Supabase child tasks insert error:", nodesError);
@@ -282,6 +283,7 @@ export async function POST(request: NextRequest) {
         id: roadmap.id,
         ...roadmapData,
       },
+      nodes: insertedNodes ?? [],
     }, { status: 201 });
 
   } catch (error) {
