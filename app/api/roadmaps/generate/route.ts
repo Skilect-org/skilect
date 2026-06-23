@@ -1,9 +1,9 @@
 // app/api/roadmaps/generate/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server"; // Updated: Added currentUser
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { getGeminiFlashModel } from "@/lib/gemini";
+import { getGeminiFlashModel, getGemini15Model } from "@/lib/gemini";
 import { runNeo4jQuery } from "@/lib/neo4j";
 import { createClient } from "@supabase/supabase-js";
 
@@ -36,256 +36,130 @@ const RoadmapOutputSchema = z.object({
   ),
 });
 
-// ── 2. GRAPH DATABASE HELPER ────────────────────────────────────────────────
+// ── 2. FAILOVER GENERATOR ──────────────────────────────────────────────────
 
-async function getSkillPathFromNeo4j(
-  targetRole: string,
-  skillGaps: string[]
-): Promise<string[]> {
+async function generateWithFailover(prompt: string) {
+  // Strategy: Try Primary -> Catch 429/Error -> Try Secondary
+  try {
+    const model = getGeminiFlashModel();
+    return await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000, temperature: 0.1 },
+    });
+  } catch (primaryError: any) {
+    console.warn("⚠️ Primary Model (2.0) hit limit, switching to Secondary (1.5)...");
+    try {
+      const backupModel = getGemini15Model();
+      return await backupModel.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1000, temperature: 0.1 },
+      });
+    } catch (secondaryError) {
+      console.error("❌ Both AI models failed.");
+      throw secondaryError;
+    }
+  }
+}
+
+// ── 3. GRAPH & PROMPT HELPERS ──────────────────────────────────────────────
+
+async function getSkillPathFromNeo4j(targetRole: string, skillGaps: string[]) {
   try {
     return await runNeo4jQuery(async (session) => {
       const result = await session.run(
-        `
-        MATCH (r:Role {name: $targetRole})-[:REQUIRES]->(s:Skill)
-        WHERE s.name IN $skillGaps OR s.category IN $skillGaps
-        RETURN s.name AS skill
-        ORDER BY s.level
-        LIMIT 20
-        `,
+        `MATCH (r:Role {name: $targetRole})-[:REQUIRES]->(s:Skill)
+         WHERE s.name IN $skillGaps OR s.category IN $skillGaps
+         RETURN s.name AS skill ORDER BY s.level LIMIT 20`,
         { targetRole, skillGaps }
       );
-
-      if (result.records.length > 0) {
-        return result.records.map((r) => r.get("skill") as string);
-      }
-      return skillGaps;
+      return result.records.length > 0 ? result.records.map((r) => r.get("skill") as string) : skillGaps;
     });
-  } catch (error) {
-    console.warn("[/api/roadmaps/generate] Neo4j Fallback Mode:", error);
+  } catch {
     return skillGaps;
   }
 }
 
-// ── 3. SYSTEM PROMPT CONSTRUCT ──────────────────────────────────────────────
-
 function buildPrompt(targetRole: string, orderedSkills: string[]): string {
-  return `
-You are an expert technical curriculum designer.
-Generate a comprehensive, structural preparation roadmap for a student targeting the role: "${targetRole}".
-
-The student needs to bridge these specific skill gaps (ordered by priority): ${orderedSkills.join(", ")}.
-
-CRITICAL: You must output ONLY a valid, raw JSON object. Do NOT wrap it in markdown code blocks (no \`\`\`json blocks), and provide no pre-text or post-text explanation.
-
-The JSON response must precisely follow this structure:
-{
-  "title": "String - Title of the roadmap",
-  "description": "String - High level summary statement",
-  "estimatedWeeks": 8,
-  "nodes": [
-    {
-      "id": "string-kebab-case-id",
-      "name": "String - Specific Skill Name",
-      "description": "String - What the student needs to learn and focus on",
-      "level": "beginner", 
-      "estimatedDays": 5,
-      "resources": [
-        {
-          "title": "String - Resource Name",
-          "url": "String - Valid reference URL",
-          "type": "documentation"
-        }
-      ]
-    }
-  ]
+  return `You are an expert curriculum designer. Generate a roadmap for "${targetRole}" with these skills: ${orderedSkills.join(", ")}. 
+  Output ONLY valid JSON. Structure: { title, description, estimatedWeeks, nodes: [{ id, name, description, level, estimatedDays, resources: [{ title, url, type }] }] }`;
 }
 
-Note: Valid values for 'level' are: "beginner" | "intermediate" | "advanced".
-Valid values for resource 'type' are: "article" | "video" | "course" | "documentation".
-Provide 2-3 realistic resource references per node.
-`.trim();
-}
-
-// ── 4. APIRoute ENDPOINT HANDLER ─────────────────────────────────────────────
+// ── 4. API ROUTE HANDLER ─────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("=========================================");
-    console.log("🚀 ROUTE TRIGGERED: EXECUTING LATEST CODE");
-    console.log("=========================================");
-
-    // A. Clerk Authentication & Dynamic RLS Token Extraction
     const { userId, getToken } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized access token" }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Fetch full account details directly from Clerk's backend core layer
     const clerkUser = await currentUser();
-
-    // Fetch the specialized JWT token generated by Clerk specifically for Supabase RLS handshakes
     const supabaseToken = await getToken({ template: "supabase" });
-
-    // Initialize an authenticated Supabase instance representing this explicit user context
     const authenticatedSupabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${supabaseToken}`,
-          },
-        },
-      }
+      { global: { headers: { Authorization: `Bearer ${supabaseToken}` } } }
     );
 
-    // B. Validate Incoming Request Structure
+    // B. Validate
     const jsonBody = await request.json();
     const { targetRole, skillGaps } = RequestSchema.parse(jsonBody);
 
-    // ── INTEGRATED: LAZY ONBOARDING STEP WITH ERROR VERIFICATION ────────────
-    const { data: userCheck } = await authenticatedSupabase
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .single();
+    // C. CACHE CHECK: Do we already have an active roadmap for this user + role?
+    // This stops you from burning quota on repeat requests.
+    const { data: existingRoadmap } = await authenticatedSupabase
+      .from("roadmaps")
+      .select("id, title, description, estimated_weeks, target_role, tasks(*)")
+      .eq("user_id", userId)
+      .eq("target_role", targetRole)
+      .eq("is_active", true)
+      .maybeSingle();
 
-    if (!userCheck) {
-      console.log(`👤 Synchronizing profile row data for user: ${userId}`);
-      
-      const emailAddress = clerkUser?.emailAddresses[0]?.emailAddress || "developer@student.com";
-      const userFullName = `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() || "Developer Student";
-
-      const { error: onboardingError } = await authenticatedSupabase
-        .from("users")
-        .insert({ 
-          id: userId,
-          email: emailAddress,        // Fulfills required 'email' column constraint
-          full_name: userFullName,    // Fulfills required 'full_name' column constraint
-        });
-
-      if (onboardingError) {
-        console.error("❌ CRITICAL: USERS TABLE PROFILE WRITE FAILURE:", onboardingError);
-        return NextResponse.json({ error: "Failed to allocate account profile row structure", details: onboardingError }, { status: 500 });
-      }
-      console.log("✅ User profile successfully written to Supabase under RLS validation!");
+    if (existingRoadmap) {
+      console.log("⚡ CACHE HIT: Returning existing roadmap from DB.");
+      return NextResponse.json({ roadmap: existingRoadmap }, { status: 200 });
     }
-    // ────────────────────────────────────────────────────────────────────────
 
-    // C. Resolve Skill Nodes ordering from Graph Layer
+    // D. Sync User & Get Neo4j Path
+    await authenticatedSupabase.from("users").upsert({
+      id: userId,
+      email: clerkUser?.emailAddresses[0]?.emailAddress || "user@example.com",
+      updated_at: new Date().toISOString()
+    });
+
     const orderedSkills = await getSkillPathFromNeo4j(targetRole, skillGaps);
 
-    // ── D. Fetch Structural Data from Gemini Flash ───────────────────────────
+    // E. Generate AI Content (With Failover)
     let roadmapData;
     try {
-      const model = getGeminiFlashModel();
-      
-      const result = await model.generateContent({
-        contents: [
-          { 
-            role: "user", 
-            parts: [{ text: buildPrompt(targetRole, orderedSkills) }] 
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      });
-      
-      const responseText = result.response.text().trim();
-      const cleanJsonString = responseText.replace(/^```json\s*|```$/gi, "").trim();
-      
-      roadmapData = RoadmapOutputSchema.parse(JSON.parse(cleanJsonString));
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn("[/api/roadmaps/generate] Gemini Limit Hit or Error. Deploying Mock Fallback Architecture.", errorMessage);
-
+      const result = await generateWithFailover(buildPrompt(targetRole, orderedSkills));
+      const cleanedText = result.response.text().replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      roadmapData = RoadmapOutputSchema.parse(JSON.parse(cleanedText));
+    } catch (error) {
+      console.warn("🚨 All models failed. Falling back to static design.");
       roadmapData = {
-        title: `${targetRole} Preparation Path`,
-        description: `Accelerated curriculum focusing on your core target areas: ${skillGaps.join(", ")}.`,
+        title: `${targetRole} Roadmap`,
+        description: "Standard curriculum path.",
         estimatedWeeks: 6,
-        nodes: [
-          {
-            id: "core-foundations",
-            name: `Mastering ${skillGaps[0] || "Target Concepts"}`,
-            description: "Deep dive into structural architecture, debugging workflows, and optimization paradigms.",
-            level: "beginner" as const,
-            estimatedDays: 5,
-            resources: [
-              {
-                title: "Official Developer Documentation",
-                url: "https://developer.mozilla.org/en-US/",
-                type: "documentation" as const
-              },
-              {
-                title: "In-Depth Video Guide",
-                url: "https://youtube.com",
-                type: "video" as const
-              }
-            ]
-          },
-          {
-            id: "advanced-integration",
-            name: `Advanced ${skillGaps[1] || "System Building"}`,
-            description: "Implementing complex state patterns, data handling rules, and handling interface edge cases.",
-            level: "intermediate" as const,
-            estimatedDays: 7,
-            resources: [
-              {
-                title: "Production Integration Playbook",
-                url: "https://react.dev",
-                type: "article" as const
-              }
-            ]
-          }
-        ]
+        nodes: [{ id: "intro", name: "Fundamentals", description: "Learn basics.", level: "beginner", estimatedDays: 5, resources: [{ title: "Docs", url: "https://docs.com", type: "documentation" }] }]
       };
     }
 
-    // E. Save Parent Roadmap Record to Supabase using the RLS-Authenticated Client
+    // F. Save
     const { data: roadmap, error: roadmapError } = await authenticatedSupabase
       .from("roadmaps")
-      .insert({
-        user_id: userId,
-        title: roadmapData.title,
-        description: roadmapData.description,
-        target_role: targetRole,
-        estimated_weeks: roadmapData.estimatedWeeks,
-      })
+      .insert({ user_id: userId, title: roadmapData.title, description: roadmapData.description, target_role: targetRole, is_active: true, estimated_weeks: roadmapData.estimatedWeeks })
       .select("id")
       .single();
 
-    if (roadmapError || !roadmap) {
-      console.error("[/api/roadmaps/generate] Supabase master insert error:", roadmapError);
-      return NextResponse.json({ error: "Failed to allocate master roadmap entity" }, { status: 500 });
-    }
+    if (roadmapError) return NextResponse.json({ error: "Failed to save roadmap" }, { status: 500 });
 
-    // ── F. Transform and Save Child Skill Nodes to 'tasks' Table ──────────────
-    const nodeRows = roadmapData.nodes.map((node, index) => ({
-      roadmap_id: roadmap.id,
-      title: node.name,        
-      description: node.description,
-      status: index === 0 ? "in_progress" : "todo",
-    }));
+    const { error: nodesError } = await authenticatedSupabase.from("tasks").insert(
+      roadmapData.nodes.map((n) => ({ roadmap_id: roadmap.id, user_id: userId, title: n.name, description: n.description, status: "todo" }))
+    );
 
-    const { error: nodesError } = await authenticatedSupabase
-      .from("tasks")
-      .insert(nodeRows);
-
-    if (nodesError) {
-      console.error("[/api/roadmaps/generate] Supabase child tasks insert error:", nodesError);
-    }
-
-    // G. Hand clean execution bundle back to the client-side UI
-    return NextResponse.json({
-      roadmap: {
-        id: roadmap.id,
-        ...roadmapData,
-      },
-    }, { status: 201 });
+    return NextResponse.json({ roadmap: { id: roadmap.id, ...roadmapData } }, { status: 201 });
 
   } catch (error) {
-    console.error("[/api/roadmaps/generate] Server processing error:", error);
-    return NextResponse.json({ error: "Internal Server Processing Error" }, { status: 500 });
+    console.error("Critical Error:", error);
+    return NextResponse.json({ error: "Server Processing Error" }, { status: 500 });
   }
 }
