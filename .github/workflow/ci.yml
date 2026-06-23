@@ -1,0 +1,42 @@
+name: Skilect Continuous Integration
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+jobs:
+  validate-project:
+    name: Code Quality & Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Clone the GitHub repository onto the runner
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Node.js environment matching modern Next.js 16 requirements
+      - name: Setup Node.js (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm' # Automagically caches node_modules to make subsequent runs blazing fast
+
+      # Step 3: Install all packages (including developer dependencies like TypeScript & Tailwind)
+      - name: Install Project Dependencies
+        run: npm ci
+
+      # Step 4: Run the Linter to catch syntax bugs, missing imports, or code standard violations
+      - name: Run Code Linter (ESLint)
+        run: npm run lint
+
+      # Step 5: Test build frontend pages & backend API routes
+      # NextJS requires Next environment placeholders to compile successfully without throwing build errors
+      - name: Verify Application Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_Y29uY2lzZS10cm9sbC02MC5jbGVyay5hY2NvdW50cy5kZXYk"
+          CLERK_SECRET_KEY: "sk_test_IwMdCfhgorLFHXCB92Zu8M8QLrBHw3h4pVXrbIg7PK"
+          NEXT_PUBLIC_SUPABASE_URL: "https://pgxljsqbkkazoqwvcdbu.supabase.co/"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBneGxqc3Fia2them9xd3ZjZGJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODg0MzAsImV4cCI6MjA5Njc2NDQzMH0.7T9AocWsIh81jyhR9Dtv9SocBU38GpD5wJEtcBKIKkw"
