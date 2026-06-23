@@ -1,0 +1,25 @@
+name: Skilect CI Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-node-version: 20 # Standard stable version for modern React/Next.js
+          cache: 'npm' # Speeds up future checks
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Check Build Success
+        run: npm run build
