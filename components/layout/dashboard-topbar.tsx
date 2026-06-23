@@ -1,12 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { UserButton } from "@clerk/nextjs";
 import { Plus, Sparkles } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
+/* Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
 function getGreeting(): string {
@@ -17,7 +18,7 @@ function getGreeting(): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Route-specific action buttons                                      */
+/* Route-specific action buttons                                     */
 /* ------------------------------------------------------------------ */
 
 interface ActionButton {
@@ -43,12 +44,18 @@ const routeActions: Record<string, ActionButton[]> = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Component                                                          */
+/* Component                                                         */
 /* ------------------------------------------------------------------ */
 
 export function DashboardTopbar() {
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const { user } = useUser();
+
+  // Ensure this only runs on the client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const firstName = user?.firstName ?? "there";
   const greeting = getGreeting();
@@ -100,8 +107,7 @@ export function DashboardTopbar() {
               onClick={handleActionClick}
               className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]"
               style={{
-                background:
-                  "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
               }}
             >
               <Icon size={14} strokeWidth={2} />
@@ -110,14 +116,19 @@ export function DashboardTopbar() {
           );
         })}
 
-        {/* Clerk user avatar */}
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "h-8 w-8",
-            },
-          }}
-        />
+        {/* Clerk user avatar with hydration fix */}
+        {isMounted ? (
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-8 w-8",
+              },
+            }}
+          />
+        ) : (
+          // Optional: A skeleton loader to prevent layout shift
+          <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
+        )}
       </div>
     </header>
   );
