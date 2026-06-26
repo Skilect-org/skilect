@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 
 export default function RoadmapsPage() {
   const [loading, setLoading] = useState(false);
-  const [roadmaps, setRoadmaps] = useState<any[]>([]); // This stores your list of roadmaps
-  const [selectedRoadmap, setSelectedRoadmap] = useState<any>(null); // This stores the currently open roadmap
-  const [activeNode, setActiveNode] = useState<any>(null);
+  const [roadmapData, setRoadmapData] = useState<Roadmap | null>(null);
   const [error, setError] = useState("");
+  const [targetRole, setTargetRole] = useState("Full Stack Developer");
+  const [customGaps, setCustomGaps] = useState("");
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
 
   // 1. Fetch saved roadmaps when component loads
   useEffect(() => {
@@ -33,10 +34,7 @@ export default function RoadmapsPage() {
       const response = await fetch("/api/roadmaps/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetRole: "Full Stack Developer",
-          skillGaps: ["React Hooks", "TypeScript Generics", "API Integration"]
-        }),
+        body: JSON.stringify({ targetRole, skillGaps }),
       });
 
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
@@ -51,6 +49,15 @@ export default function RoadmapsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleStep = (nodeId: string) => {
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
   };
 
   // 3. Logic to handle task status
