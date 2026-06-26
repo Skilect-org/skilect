@@ -75,38 +75,35 @@ export async function POST(request: NextRequest) {
 
     const jsonBody = await request.json();
     const { targetRole, skillGaps } = RequestSchema.parse(jsonBody);
-    const db = createServerSupabaseClient();
 
-    // ── INTEGRATED: LAZY ONBOARDING STEP WITH ERROR VERIFICATION ────────────
-    const { data: userCheck } = await authenticatedSupabase
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .single();
+    // 1. Cache Check FIX: Handle multiple rows gracefully
+    const { data: existingRoadmaps, error: cacheError } = await supabase
+      .from("roadmaps")
+      .select("*, skill_nodes(*)")
+      .eq("user_id", userId)
+      .eq("target_role", targetRole)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (!userCheck) {
-      console.log(`👤 Synchronizing profile row data for user: ${userId}`);
-      
-      const emailAddress = clerkUser?.emailAddresses[0]?.emailAddress || "developer@student.com";
-      const userFullName = `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() || "Developer Student";
+    if (cacheError) console.error("❌ Supabase Cache Check Error:", cacheError);
 
-      const { error: onboardingError } = await authenticatedSupabase
-        .from("users")
-        .insert({ 
-          id: userId,
-          email: emailAddress,        // Fulfills required 'email' column constraint
-          full_name: userFullName,    // Fulfills required 'full_name' column constraint
-        });
-
-      if (onboardingError) {
-        console.error("❌ CRITICAL: USERS TABLE PROFILE WRITE FAILURE:", onboardingError);
-        return NextResponse.json({ error: "Failed to allocate account profile row structure", details: onboardingError }, { status: 500 });
-      }
-      console.log("✅ User profile successfully written to Supabase under RLS validation!");
+    if (existingRoadmaps && existingRoadmaps.length > 0) {
+      return NextResponse.json({ roadmap: existingRoadmaps[0] }, { status: 200 });
     }
-    // ────────────────────────────────────────────────────────────────────────
 
-    // C. Resolve Skill Nodes ordering from Graph Layer
+    // 2. Sync profile attributes FIX: Added full_name fallback
+    const fullName = clerkUser ? `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || "Unknown User" : "Unknown User";
+    
+    const { error: userSyncError } = await supabaseAdmin.from("users").upsert({
+      id: userId,
+      email: clerkUser?.emailAddresses[0]?.emailAddress || "user@example.com",
+      full_name: fullName, 
+      updated_at: new Date().toISOString()
+    });
+
+    if (userSyncError) console.error("❌ Supabase User Sync Upsert Error:", userSyncError);
+
     const orderedSkills = await getSkillPathFromNeo4j(targetRole, skillGaps);
 
     // 3. AI Generation execution loop
@@ -199,10 +196,7 @@ export async function POST(request: NextRequest) {
       dependencies: n.dependencies || [] 
     }));
 
-    const { error: nodesError } = await authenticatedSupabase
-      .from("tasks")
-      .insert(nodeRows);
-
+    const { error: nodesError } = await supabaseAdmin.from("skill_nodes").insert(nodeRows);
     if (nodesError) {
       console.error("❌ Supabase Skill Nodes Insert Error:", nodesError);
       return NextResponse.json({ error: "Failed to allocate target skill nodes", details: nodesError }, { status: 500 });
