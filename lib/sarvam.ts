@@ -19,7 +19,7 @@ const sarvamApiKey = process.env.SARVAM_API_KEY;
 const sarvamApiUrl = process.env.SARVAM_API_URL || "https://api.sarvam.ai";
 
 if (!sarvamApiKey) {
-  throw new Error("[Sarvam] Missing SARVAM_API_KEY environment variable");
+  console.warn("⚠️ [Sarvam] Missing SARVAM_API_KEY environment variable. API calls will fail.");
 }
 
 // ── Authenticated fetch helper ────────────────────────────────────────────────
@@ -27,6 +27,9 @@ export async function sarvamFetch(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> {
+  if (!sarvamApiKey) {
+    throw new Error("[Sarvam] Missing SARVAM_API_KEY environment variable");
+  }
   const url = `${sarvamApiUrl}${endpoint}`;
 
   // Merge auth headers — preserve any Content-Type the caller sets

@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { RoadmapCard, RoadmapTimeline } from "@/components/roadmaps";
+import { Sparkles, Plus } from "lucide-react";
 
 export default function RoadmapsPage() {
+  const [roadmaps, setRoadmaps] = useState<any[]>([]);
+  const [selectedRoadmap, setSelectedRoadmap] = useState<any>(null);
+  const [activeNode, setActiveNode] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [roadmapData, setRoadmapData] = useState<Roadmap | null>(null);
+  const [roadmapData, setRoadmapData] = useState<any | null>(null);
   const [error, setError] = useState("");
   const [targetRole, setTargetRole] = useState("Full Stack Developer");
-  const [customGaps, setCustomGaps] = useState("");
+  const [skillGaps, setSkillGaps] = useState("");
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
 
   // 1. Fetch saved roadmaps when component loads
@@ -34,7 +39,7 @@ export default function RoadmapsPage() {
       const response = await fetch("/api/roadmaps/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetRole, skillGaps }),
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
@@ -107,17 +112,36 @@ export default function RoadmapsPage() {
 
         {error && <div className="p-4 mb-6 bg-red-50 text-red-600 rounded-xl border border-red-200">{error}</div>}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {roadmaps.map((r) => (
-            <div key={r.id} onClick={() => setSelectedRoadmap(r)} className="p-6 border rounded-2xl cursor-pointer hover:border-indigo-500 bg-white shadow-sm hover:shadow-md transition-all">
-              <h3 className="font-bold text-xl text-slate-900">{r.title}</h3>
-              <p className="text-gray-500 text-sm mt-2 line-clamp-2">{r.description}</p>
-              <div className="mt-4 text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-                {r.skill_nodes?.length || 0} Milestones
-              </div>
+        {roadmaps.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center flex flex-col items-center justify-center min-h-[320px] shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-5 text-2xl">
+              🗺️
             </div>
-          ))}
-        </div>
+            <h3 className="text-[16px] font-bold text-gray-900 mb-2">No Active Roadmap Found</h3>
+            <p className="text-gray-500 text-[13px] max-w-sm mb-6">
+              You haven't generated a learning pathway yet. Click below to dynamically generate a roadmap tailored to your onboarding profile.
+            </p>
+            <button
+              onClick={generateDemoRoadmap}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-[13px] font-semibold text-white shadow-md hover:bg-indigo-500 transition-all disabled:opacity-50"
+            >
+              <Sparkles size={14} /> Generate My Roadmap
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {roadmaps.map((r) => (
+              <div key={r.id} onClick={() => setSelectedRoadmap(r)} className="p-6 border rounded-2xl cursor-pointer hover:border-indigo-500 bg-white shadow-sm hover:shadow-md transition-all">
+                <h3 className="font-bold text-xl text-slate-900">{r.title}</h3>
+                <p className="text-gray-500 text-sm mt-2 line-clamp-2">{r.description}</p>
+                <div className="mt-4 text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                  {r.skill_nodes?.length || 0} Milestones
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     );
   }

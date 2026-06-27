@@ -19,7 +19,7 @@ const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional().default(""),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().optional(),
   roadmapId: z.string().uuid().optional(),
 });
 
@@ -29,7 +29,7 @@ const UpdateTaskSchema = z.object({
   description: z.string().max(1000).optional(),
   status: z.enum(["todo", "in_progress", "completed"]).optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
-  dueDate: z.string().datetime().nullable().optional(),
+  dueDate: z.string().nullable().optional(),
 });
 
 // ── GET ───────────────────────────────────────────────────────────────────────

@@ -65,13 +65,18 @@ export async function POST(request: NextRequest) {
 
   const db = createServerSupabaseClient();
 
+  const parts = `${user.firstName || ""} ${user.lastName || ""}`.trim().split(/\s+/);
+  const firstName = parts[0] || "";
+  const lastName = parts.slice(1).join(" ") || "";
+
   // 1. Sync User profile structure to prevent foreign key errors
   await db.from("users").upsert({
-    id: userId,
+    clerk_id: userId,
     email: user.emailAddresses[0]?.emailAddress || "user@example.com",
-    full_name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+    first_name: firstName,
+    last_name: lastName,
     updated_at: new Date().toISOString()
-  });
+  }, { onConflict: "clerk_id" });
 
   // 2. Generate metrics or build dynamic fallbacks
   const baseScore = body.experienceLevel === "advanced" ? 80 : body.experienceLevel === "intermediate" ? 60 : 40;
