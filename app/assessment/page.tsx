@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { AssessmentLayout } from "@/components/assessment";
 
 // --- Suggested Data ---
@@ -17,6 +18,8 @@ const SUGGESTED_SKILLS = ["React", "TypeScript", "Java", "3D Modeling", "Node.js
 export default function AssessmentPage() {
   const router = useRouter();
   
+  const { user } = useUser();
+
   // --- UI State ---
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +38,9 @@ export default function AssessmentPage() {
   const [projectsBuilt, setProjectsBuilt] = useState("");
   const [hasInternship, setHasInternship] = useState<boolean | null>(null);
   const [learningGoal, setLearningGoal] = useState("");
+  const [college, setCollege] = useState("");
+  const [branch, setBranch] = useState("");
+  const [yearOfStudy, setYearOfStudy] = useState("1");
 
   // --- Handlers ---
   const toggleSkill = (skill: string) => {
@@ -60,7 +66,7 @@ export default function AssessmentPage() {
   const validateStep = () => {
     if (step === 1) return targetRole !== "" && experienceLevel !== "";
     if (step === 2) return skillsChecklist.length > 0;
-    if (step === 3) return projectsBuilt !== "" && hasInternship !== null && learningGoal !== "";
+    if (step === 3) return projectsBuilt !== "" && hasInternship !== null && learningGoal !== "" && college.trim() !== "" && branch.trim() !== "" && yearOfStudy !== "";
     return true;
   };
 
@@ -68,21 +74,21 @@ export default function AssessmentPage() {
     setIsSubmitting(true);
     setError(null);
 
-    // Formatted for the API (Note: You will need to update your Zod schema in api/assessment/route.ts to match this!)
     const payload = {
-      assessmentId: "onboarding-diagnostic",
+      fullName: user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Student",
+      email: user?.primaryEmailAddress?.emailAddress || "no-email@example.com",
+      college,
+      branch,
+      yearOfStudy,
       targetRole,
+      skills: skillsChecklist,
       experienceLevel,
-      skillsChecklist,
-      background: {
-        projectsBuilt,
-        hasInternship,
-        learningGoal
-      }
+      projectCount: projectsBuilt || "0",
+      hasInternship: hasInternship ?? false,
     };
 
     try {
-      const response = await fetch("/api/assessment", {
+      const response = await fetch("/api/assessment/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -285,7 +291,7 @@ export default function AssessmentPage() {
             <div className="space-y-3 pt-4">
               <label className="block text-sm font-semibold text-gray-800">What is your immediate learning priority?</label>
               <select
-                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm cursor-pointer"
+                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm cursor-pointer text-gray-900"
                 value={learningGoal}
                 onChange={(e) => setLearningGoal(e.target.value)}
               >
@@ -294,6 +300,47 @@ export default function AssessmentPage() {
                 <option value="Grinding algorithmic problem-solving">Mastering algorithmic problem-solving</option>
                 <option value="Learning system architecture and design">Learning system architecture and design</option>
                 <option value="Preparing for job interviews">Preparing for job interviews</option>
+              </select>
+            </div>
+
+            {/* College & Branch */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-800">College / University</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Stanford University"
+                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-gray-900 shadow-sm"
+                  value={college}
+                  onChange={(e) => setCollege(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-800">Branch / Major of Study</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Computer Science"
+                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-gray-900 shadow-sm"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Year of Study */}
+            <div className="space-y-3 pt-4">
+              <label className="block text-sm font-semibold text-gray-800">Year of Study</label>
+              <select
+                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm cursor-pointer text-gray-900"
+                value={yearOfStudy}
+                onChange={(e) => setYearOfStudy(e.target.value)}
+              >
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+                <option value="Graduate">Graduate / Post-Graduate</option>
               </select>
             </div>
 

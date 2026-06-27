@@ -8,6 +8,9 @@ export const getGemini25FlashLite = () =>
 export const getGemini25Flash = () => 
   genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+export const getGeminiFlashModel = () =>
+  genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
 // Strict validation definition matching your skill_nodes DB requirements
 export const roadmapResponseSchema = {
   type: SchemaType.OBJECT,
