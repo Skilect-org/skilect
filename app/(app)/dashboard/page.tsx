@@ -16,6 +16,7 @@ import {
   Brain,
 } from "lucide-react";
 import Link from "next/link";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 /* ------------------------------------------------------------------ */
 /*  Mock data — replace with real data from your backend               */
@@ -261,6 +262,24 @@ function QuickStatCard({
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col gap-4 px-5 py-4 lg:px-6 lg:py-5 animate-pulse">
+      <div className="grid gap-3 lg:grid-cols-5">
+        <div className="h-40 rounded-xl bg-gray-100 lg:col-span-3" />
+        <div className="grid grid-cols-2 gap-3 lg:col-span-2">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-100" />)}
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="h-64 rounded-2xl bg-gray-100" />
+        <div className="h-64 rounded-2xl bg-gray-100" />
+      </div>
+    </div>
+  );
+}
+
+
 function RoadmapListCard({
   roadmaps,
 }: {
@@ -441,12 +460,49 @@ function TaskListCard({ tasks }: { tasks: typeof mockTasks }) {
 /* ------------------------------------------------------------------ */
 
 export default function DashboardPage() {
+
+  const { stats, loading, error } = useDashboard();
+
+  if (loading) return <DashboardSkeleton />;
+
+  if (error || !stats) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-red-500">Failed to load dashboard. Please refresh.</p>
+      </div>
+    );
+  }
+
+  // Readiness breakdown derived from real score
+  const activeTasks = Math.max(stats.totalTasks - stats.completedTasks, 0);
+  const roadmapProgress = typeof (stats as any).roadmapProgress === "number" ? (stats as any).roadmapProgress : mockStats.roadmapProgress;
+  const taskCompletionRate =
+    stats.totalTasks > 0
+      ? Math.round((stats.completedTasks / stats.totalTasks) * 100)
+      : 0;
+  const breakdown = [
+    {
+      label: "Tasks Done",
+      value: Math.min(Math.max(taskCompletionRate, 0), 100),
+      color: "#3b82f6",
+    },
+    { label: "Roadmaps", value: Math.min(roadmapProgress * 20, 100), color: "#f59e0b" },
+    { label: "Active", value: Math.min(activeTasks * 15, 100), color: "#10b981" },
+  ];
+
+  // Placeholder roadmaps section — Meet will replace with real data once roadmaps are persisted
+  const placeholderRoadmaps = [
+    { id: "1", title: "Generate your first roadmap →", progress: 0, totalSteps: 0, completedSteps: 0, icon: Code2, color: "#3b82f6" },
+    { id: "2", title: "Upload resume for AI roadmap", progress: 0, totalSteps: 0, completedSteps: 0, icon: Brain, color: "#8b5cf6" },
+    { id: "3", title: "Start placement preparation", progress: 0, totalSteps: 0, completedSteps: 0, icon: Target, color: "#f59e0b" },
+  ];
+
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 py-4 lg:px-6 lg:py-5">
       {/* ── Readiness + Stats ─────────────────────────────────────── */}
       <ReadinessSection
-        score={mockStats.readinessScore}
-        breakdown={mockStats.readinessBreakdown}
+        score={stats.readinessScore}
+        breakdown={breakdown}
       />
 
       {/* ── Active Roadmaps + Today's Tasks ───────────────────────── */}
@@ -455,5 +511,9 @@ export default function DashboardPage() {
         <TaskListCard tasks={mockTasks} />
       </div>
     </div>
+
+
+
+
   );
 }

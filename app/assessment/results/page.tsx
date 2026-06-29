@@ -9,9 +9,11 @@ import { StrengthsCard } from "@/components/assessment/strengths-card";
 import { GapsCard } from "@/components/assessment/gaps-card";
 import { RecommendationCard } from "@/components/assessment/recommendation-card";
 
+// Inside your AssessmentResultsPage component:
 export default function AssessmentResultsPage() {
   const { user, isLoaded } = useUser();
   const [roadmap, setRoadmap] = useState<any>(null);
+  const [assessmentData, setAssessmentData] = useState<any>(null); // NEW STATE
   const [tasks, setTasks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -20,15 +22,14 @@ export default function AssessmentResultsPage() {
 
     async function fetchLatestDatabaseRoadmap() {
       try {
-        // Hit our new internal proxy endpoint to securely read database values
         const response = await fetch("/api/assessment/latest");
         if (!response.ok) throw new Error("Failed to load map data from server");
         
         const data = await response.json();
-
         if (data.roadmap) {
           setRoadmap(data.roadmap);
           setTasks(data.tasks);
+          setAssessmentData(data.assessment); // SET THE FETCHED DATA
         }
       } catch (err) {
         console.error("Error reading assessment profile via API:", err);
@@ -36,7 +37,6 @@ export default function AssessmentResultsPage() {
         setIsLoading(false);
       }
     }
-
     fetchLatestDatabaseRoadmap();
   }, [user, isLoaded]);
 
@@ -76,13 +76,13 @@ export default function AssessmentResultsPage() {
     );
   }
 
-  // Structural fallback data for visual metrics that aren't persisted in your clean schema
+  // Use the fetched database score, or fallback to 0 while waiting
+  const readinessScore = assessmentData?.score || 0;
+  const scoreLabel = assessmentData?.feedback || "Roadmap initialized successfully.";
+
   const displayMetrics = {
-    readinessScore: 78,
-    scoreLabel: "Verified Profile — Roadmap initialized successfully in backend infrastructure.",
     strengths: [
       { skill: "Core Architecture", level: 85, description: "Demonstrated fundamental engineering clarity during setup inputs." },
-      { skill: "Development Adaptability", level: 80, description: "Ready to proceed into automated project development milestones." }
     ],
     gaps: [
       { skill: "System Testing", priority: "high" as const, description: "Executing full integration tracks across isolated deployment instances." }
@@ -107,9 +107,9 @@ export default function AssessmentResultsPage() {
         </p>
       </div>
 
-      {/* Score Card */}
+      {/* Score Card - Now fully dynamic! */}
       <div className="results-fade-in" style={{ animationDelay: "100ms" }}>
-        <ScoreCard score={displayMetrics.readinessScore} label={displayMetrics.scoreLabel} />
+        <ScoreCard score={readinessScore} label={scoreLabel} />
       </div>
 
       {/* Strengths + Gaps */}

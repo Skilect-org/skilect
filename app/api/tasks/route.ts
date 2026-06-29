@@ -1,30 +1,26 @@
 /**
  * /api/tasks
  *
- * GET  — Fetch all tasks for the authenticated user (with optional filters)
- *         Query params: ?status=todo|in_progress|completed  ?priority=low|medium|high
+ * GET    — Fetch all tasks for the user (?status=  ?priority=)
+ * POST   — Create a new task
+ * PATCH  — Update a task (status, title, description, priority, dueDate)
+ * DELETE — Delete a task (?id=uuid)
  *
- * POST — Create a new task
- *         Body: { title, description, priority, dueDate?, roadmapId? }
- *
- * PATCH — Update task status or fields
- *         Body: { id, status?, title?, description?, priority?, dueDate? }
- *
- * Auth: Clerk  |  DB: Supabase (service-role)
+ * Auth: Clerk  |  DB: Supabase service-role
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
-// ── Schemas ────────────────────────────────────────────────────────────────────
+// ── Schemas ───────────────────────────────────────────────────────────────────
 const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional().default(""),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
-  dueDate: z.string().datetime().optional(),
-  roadmapId: z.string().uuid().optional(),
+  dueDate: z.string().nullable().optional(),
+  roadmapId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateTaskSchema = z.object({
@@ -33,10 +29,10 @@ const UpdateTaskSchema = z.object({
   description: z.string().max(1000).optional(),
   status: z.enum(["todo", "in_progress", "completed"]).optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
-  dueDate: z.string().datetime().optional().nullable(),
+  dueDate: z.string().nullable().optional(),
 });
 
-// ── GET ────────────────────────────────────────────────────────────────────────
+// ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -61,14 +57,14 @@ export async function GET(request: NextRequest) {
   const { data: tasks, error } = await query;
 
   if (error) {
-    console.error("[GET /api/tasks] Error:", error);
+    console.error("[GET /api/tasks]", error);
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
   }
 
-  return NextResponse.json({ tasks });
+  return NextResponse.json({ tasks: tasks ?? [] });
 }
 
-// ── POST ───────────────────────────────────────────────────────────────────────
+// ── POST ──────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -78,14 +74,56 @@ export async function POST(request: NextRequest) {
   let body;
   try {
     body = CreateTaskSchema.parse(await request.json());
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: "Invalid request body", details: error },
+      { error: "Invalid request body", details: err },
       { status: 400 }
     );
   }
 
   const db = createServerSupabaseClient();
+
+  // Ensure user exists in users table to prevent foreign key errors
+  const { data: userExists, error: userCheckError } = await db
+    .from("users")
+    .select("clerk_id")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+
+  if (userCheckError) {
+    console.error("[POST /api/tasks] User check error:", userCheckError);
+  }
+
+  if (!userExists) {
+    try {
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const fullName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "Unknown User";
+        const parts = fullName.split(/\s+/);
+        const firstName = parts[0] || "";
+        const lastName = parts.slice(1).join(" ") || "";
+
+        const { error: userSyncError } = await db.from("users").upsert({
+          clerk_id: userId,
+          email: clerkUser.emailAddresses[0]?.emailAddress || "user@example.com",
+          first_name: firstName,
+          last_name: lastName,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: "clerk_id"
+        });
+
+        if (userSyncError) {
+          console.error("[POST /api/tasks] Lazy user sync upsert error:", userSyncError);
+        }
+      }
+    } catch (err) {
+      console.error("[POST /api/tasks] Lazy user sync error:", err);
+    }
+  }
+
+  const now = new Date().toISOString();
+
   const { data: task, error } = await db
     .from("tasks")
     .insert({
@@ -96,21 +134,21 @@ export async function POST(request: NextRequest) {
       status: "todo",
       due_date: body.dueDate ?? null,
       roadmap_id: body.roadmapId ?? null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     })
     .select()
     .single();
 
   if (error) {
-    console.error("[POST /api/tasks] Error:", error);
+    console.error("[POST /api/tasks]", error);
     return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   }
 
   return NextResponse.json({ task }, { status: 201 });
 }
 
-// ── PATCH ──────────────────────────────────────────────────────────────────────
+// ── PATCH ─────────────────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -120,37 +158,83 @@ export async function PATCH(request: NextRequest) {
   let body;
   try {
     body = UpdateTaskSchema.parse(await request.json());
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { error: "Invalid request body", details: error },
+      { error: "Invalid request body", details: err },
       { status: 400 }
     );
   }
 
-  const { id, ...updates } = body;
+  const { id, dueDate, ...rest } = body;
+  const now = new Date().toISOString();
 
-  // If marking complete, stamp completed_at
   const payload: Record<string, unknown> = {
-    ...updates,
-    updated_at: new Date().toISOString(),
-    ...(updates.status === "completed"
-      ? { completed_at: new Date().toISOString() }
-      : {}),
+    ...rest,
+    updated_at: now,
+    ...(dueDate !== undefined && { due_date: dueDate }),
+    // Stamp completed_at when marking done; clear it when un-completing
+    ...(rest.status === "completed" && { completed_at: now }),
+    ...(rest.status !== undefined && rest.status !== "completed" && { completed_at: null }),
   };
 
   const db = createServerSupabaseClient();
+
   const { data: task, error } = await db
     .from("tasks")
     .update(payload)
     .eq("id", id)
-    .eq("user_id", userId) // ensure ownership
+    .eq("user_id", userId) // ownership check
     .select()
     .single();
 
   if (error) {
-    console.error("[PATCH /api/tasks] Error:", error);
+    console.error("[PATCH /api/tasks]", error);
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
   }
 
+  if (!task) {
+    return NextResponse.json(
+      { error: "Task not found or access denied" },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({ task });
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+export async function DELETE(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing task id" }, { status: 400 });
+  }
+
+  // Validate it's a UUID
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return NextResponse.json({ error: "Invalid task id" }, { status: 400 });
+  }
+
+  const db = createServerSupabaseClient();
+
+  const { error } = await db
+    .from("tasks")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId); // ownership check — can't delete another user's task
+
+  if (error) {
+    console.error("[DELETE /api/tasks]", error);
+    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }
