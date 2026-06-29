@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
@@ -19,8 +19,8 @@ const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional().default(""),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
-  dueDate: z.string().optional(),
-  roadmapId: z.string().uuid().optional(),
+  dueDate: z.string().nullable().optional(),
+  roadmapId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateTaskSchema = z.object({
@@ -82,6 +82,46 @@ export async function POST(request: NextRequest) {
   }
 
   const db = createServerSupabaseClient();
+
+  // Ensure user exists in users table to prevent foreign key errors
+  const { data: userExists, error: userCheckError } = await db
+    .from("users")
+    .select("clerk_id")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+
+  if (userCheckError) {
+    console.error("[POST /api/tasks] User check error:", userCheckError);
+  }
+
+  if (!userExists) {
+    try {
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const fullName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "Unknown User";
+        const parts = fullName.split(/\s+/);
+        const firstName = parts[0] || "";
+        const lastName = parts.slice(1).join(" ") || "";
+
+        const { error: userSyncError } = await db.from("users").upsert({
+          clerk_id: userId,
+          email: clerkUser.emailAddresses[0]?.emailAddress || "user@example.com",
+          first_name: firstName,
+          last_name: lastName,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: "clerk_id"
+        });
+
+        if (userSyncError) {
+          console.error("[POST /api/tasks] Lazy user sync upsert error:", userSyncError);
+        }
+      }
+    } catch (err) {
+      console.error("[POST /api/tasks] Lazy user sync error:", err);
+    }
+  }
+
   const now = new Date().toISOString();
 
   const { data: task, error } = await db
