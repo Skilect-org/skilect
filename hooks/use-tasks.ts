@@ -1,10 +1,3 @@
-/**
- * hooks/use-tasks.ts
- *
- * Full CRUD hook for tasks — wraps all /api/tasks calls.
- * Uses optimistic UI for toggle and delete so the UI feels instant.
- */
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -26,21 +19,75 @@ export interface Task {
 export type TaskStatus = Task["status"];
 export type TaskPriority = Task["priority"];
 
+const initialMockTasks: Task[] = [
+  {
+    id: "mock-task-1",
+    user_id: "mock-user",
+    roadmap_id: null,
+    title: "Complete DSA Array Problems",
+    description: "Solve 15 essential Array & Hashing questions on LeetCode.",
+    priority: "high",
+    status: "in_progress",
+    due_date: new Date(Date.now() + 86400000 * 2).toISOString(),
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "mock-task-2",
+    user_id: "mock-user",
+    roadmap_id: null,
+    title: "Review React Performance Optimizations",
+    description: "Study React.memo, useMemo, and useCallback hooks for interviews.",
+    priority: "medium",
+    status: "todo",
+    due_date: new Date(Date.now() + 86400000).toISOString(),
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "mock-task-3",
+    user_id: "mock-user",
+    roadmap_id: null,
+    title: "Refactor Portfolio Projects",
+    description: "Add responsive design and project detail pages to portfolio.",
+    priority: "low",
+    status: "todo",
+    due_date: null,
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "mock-task-4",
+    user_id: "mock-user",
+    roadmap_id: null,
+    title: "Resume Review Session",
+    description: "Review system design experience description and projects on resume.",
+    priority: "high",
+    status: "completed",
+    due_date: new Date(Date.now() - 86400000).toISOString(),
+    completed_at: new Date(Date.now() - 86400000 + 3600000).toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+];
+
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
+  // ── Fetch (Simulated) ────────────────────────────────────────────────────────
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/tasks");
-      if (!res.ok) throw new Error("Failed to fetch tasks");
-      const data = await res.json();
-      setTasks(data.tasks ?? []);
+      // Simulate small delay
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      setTasks(initialMockTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -62,24 +109,21 @@ export function useTasks() {
   }) => {
     setSaving(true);
     try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: payload.title,
-          description: payload.description ?? "",
-          priority: payload.priority,
-          dueDate: payload.dueDate ?? undefined,
-          roadmapId: payload.roadmapId ?? undefined,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to create task");
-      }
-      const { task } = await res.json();
-      setTasks((prev) => [task, ...prev]);
-      return task as Task;
+      const newTask: Task = {
+        id: crypto.randomUUID(),
+        user_id: "mock-user",
+        roadmap_id: payload.roadmapId ?? null,
+        title: payload.title,
+        description: payload.description ?? "",
+        priority: payload.priority,
+        status: "todo",
+        due_date: payload.dueDate ?? null,
+        completed_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      setTasks((prev) => [newTask, ...prev]);
+      return newTask;
     } finally {
       setSaving(false);
     }
@@ -96,42 +140,28 @@ export function useTasks() {
       dueDate: string | null;
     }>
   ) => {
-    // Optimistic update
+    let updatedTask: Task | null = null;
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              ...(updates.title !== undefined && { title: updates.title }),
-              ...(updates.description !== undefined && { description: updates.description }),
-              ...(updates.status !== undefined && { status: updates.status }),
-              ...(updates.priority !== undefined && { priority: updates.priority }),
-              ...(updates.dueDate !== undefined && { due_date: updates.dueDate }),
-              updated_at: new Date().toISOString(),
-            }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id === id) {
+          const u: Task = {
+            ...t,
+            ...(updates.title !== undefined && { title: updates.title }),
+            ...(updates.description !== undefined && { description: updates.description }),
+            ...(updates.status !== undefined && { status: updates.status }),
+            ...(updates.priority !== undefined && { priority: updates.priority }),
+            ...(updates.dueDate !== undefined && { due_date: updates.dueDate }),
+            updated_at: new Date().toISOString(),
+            ...(updates.status === "completed" && { completed_at: new Date().toISOString() }),
+            ...(updates.status !== undefined && updates.status !== "completed" && { completed_at: null }),
+          };
+          updatedTask = u;
+          return u;
+        }
+        return t;
+      })
     );
-
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...updates }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to update task");
-      }
-      const { task } = await res.json();
-      // Replace with server-confirmed version
-      setTasks((prev) => prev.map((t) => (t.id === id ? task : t)));
-      return task as Task;
-    } catch (err) {
-      // Rollback on failure
-      fetchTasks();
-      throw err;
-    }
+    return updatedTask!;
   };
 
   // ── Toggle (todo → in_progress → completed cycle) ────────────────────────────
@@ -149,19 +179,7 @@ export function useTasks() {
 
   // ── Delete ───────────────────────────────────────────────────────────────────
   const deleteTask = async (id: string) => {
-    // Optimistic removal
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    try {
-      const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to delete task");
-      }
-    } catch (err) {
-      // Rollback
-      fetchTasks();
-      throw err;
-    }
   };
 
   // ── Derived counts ────────────────────────────────────────────────────────────
