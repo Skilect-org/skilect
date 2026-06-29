@@ -1,32 +1,35 @@
-"use client";
 import { motion } from "framer-motion";
 
-// 1. Define the shape of your data
-interface Task {
+// 1. Define strict types to eliminate the 'any' type TS errors
+export interface Task {
   id: string;
   title: string;
   completed: boolean;
 }
 
-interface Node {
+export interface SkillNode {
   id: string;
   name: string;
   description: string;
-  status: string;
+  status: 'not_started' | 'in_progress' | 'completed';
   tasks: Task[];
+  created_at?: string; 
 }
 
-interface RoadmapRendererProps {
-  nodes: Node[];
-}
+// 2. Type the props explicitly
+export const RoadmapRenderer = ({ nodes = [] }: { nodes: SkillNode[] }) => {
+  
+  // 3. Sort nodes by creation time to ensure the locking index logic works
+  const sortedNodes = [...nodes].sort((a, b) => {
+    return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+  });
 
-export const RoadmapRenderer = ({ nodes }: RoadmapRendererProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-10">
-      {nodes.map((node, index) => {
-        // 2. Logic: The first node is always open. Subsequent nodes open if previous one is completed.
-        const isUnlocked = index === 0 || nodes[index - 1].status === 'completed';
-        
+      {sortedNodes.map((node, index) => {
+        // Now index 0 is guaranteed to be the actual first node
+        const isUnlocked = index === 0 || sortedNodes[index - 1].status === 'completed';
+
         return (
           <motion.div
             key={node.id}
@@ -37,10 +40,11 @@ export const RoadmapRenderer = ({ nodes }: RoadmapRendererProps) => {
           >
             <h3 className="font-bold text-lg">{node.name}</h3>
             <p className="text-sm text-gray-600">{node.description}</p>
-            
+
             <ul className="mt-4 space-y-2">
-              {(node.tasks || []).map((task, i) => (
-                <li key={i} className="text-xs flex items-center gap-2">
+              {/* Type the task mapping to clear the final TS errors */}
+              {(node.tasks || []).map((task: Task, i: number) => (
+                <li key={task.id || i} className="text-xs flex items-center gap-2">
                   <input type="checkbox" checked={task.completed} readOnly />
                   {task.title}
                 </li>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   ListChecks,
   Mic,
@@ -16,7 +17,9 @@ import {
   Brain,
 } from "lucide-react";
 import Link from "next/link";
-import { useDashboard } from "@/hooks/use-dashboard";
+import { useDashboard, type DashboardStats } from "@/hooks/use-dashboard";
+import { useTasks, type Task } from "@/hooks/use-tasks";
+import { TaskDrawer, type DrawerFormData } from "@/app/(app)/tasks/page";
 
 /* ------------------------------------------------------------------ */
 /*  Mock data — replace with real data from your backend               */
@@ -149,9 +152,11 @@ function ScoreRing({ score, size = 120 }: { score: number; size?: number }) {
 function ReadinessSection({
   score,
   breakdown,
+  stats,
 }: {
   score: number;
   breakdown: { label: string; value: number; color: string }[];
+  stats: DashboardStats;
 }) {
   return (
     <div className="grid gap-3 lg:grid-cols-5">
@@ -200,28 +205,28 @@ function ReadinessSection({
         <QuickStatCard
           icon={ListChecks}
           label="Total Tasks"
-          value={mockStats.totalTasks}
+          value={stats.totalTasks}
           color="#3b82f6"
           bgColor="#eff6ff"
         />
         <QuickStatCard
           icon={Mic}
           label="Interviews"
-          value={mockStats.totalInterviews}
+          value={stats.totalInterviews}
           color="#8b5cf6"
           bgColor="#f5f3ff"
         />
         <QuickStatCard
           icon={TrendingUp}
           label="Roadmaps"
-          value={mockStats.roadmapProgress}
+          value={stats.roadmapCount}
           color="#f59e0b"
           bgColor="#fffbeb"
         />
         <QuickStatCard
           icon={Flame}
           label="Streak"
-          value={`${mockStats.streak}d`}
+          value={`${stats.streak}d`}
           color="#ef4444"
           bgColor="#fef2f2"
         />
@@ -369,22 +374,44 @@ function RoadmapListCard({
   );
 }
 
-function TaskListCard({ tasks }: { tasks: typeof mockTasks }) {
-  const statusIcon = {
-    completed: (
-      <CheckCircle2 size={15} strokeWidth={2} className="text-emerald-500" />
-    ),
-    "in-progress": (
-      <Clock size={15} strokeWidth={2} className="text-blue-500" />
-    ),
-    pending: <Circle size={15} strokeWidth={1.75} className="text-gray-300" />,
+function TaskListCard({
+  tasks,
+  onToggle,
+}: {
+  tasks: Task[];
+  onToggle: (id: string) => Promise<void>;
+}) {
+  const getCategoryLabel = (task: Task) => {
+    if (task.roadmap_id) return "Roadmap";
+    return task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
   };
 
-  const statusBadgeClass = {
-    completed: "bg-emerald-50 text-emerald-600",
-    "in-progress": "bg-blue-50 text-blue-600",
-    pending: "bg-gray-50 text-gray-500",
+  const getCategoryBadgeClass = (task: Task) => {
+    if (task.roadmap_id) return "bg-violet-50 text-violet-600";
+    if (task.priority === "high") return "bg-red-50 text-red-600";
+    if (task.priority === "medium") return "bg-amber-50 text-amber-600";
+    return "bg-gray-50 text-gray-500";
   };
+
+  const getDueTimeLabel = (dueDateStr: string | null) => {
+    if (!dueDateStr) return "No due date";
+    const dueDate = new Date(dueDateStr);
+    const today = new Date();
+    if (dueDate.toDateString() === today.toDateString()) return "Today";
+    return dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const statusIcon = (status: Task["status"]) => {
+    if (status === "completed") {
+      return <CheckCircle2 size={15} strokeWidth={2} className="text-emerald-500 hover:scale-110 transition-transform" />;
+    }
+    if (status === "in_progress") {
+      return <Clock size={15} strokeWidth={2} className="text-blue-500 hover:scale-110 transition-transform" />;
+    }
+    return <Circle size={15} strokeWidth={1.75} className="text-gray-300 hover:text-gray-400 hover:scale-110 transition-transform" />;
+  };
+
+  const displayedTasks = tasks.slice(0, 4);
 
   return (
     <div
@@ -410,35 +437,50 @@ function TaskListCard({ tasks }: { tasks: typeof mockTasks }) {
 
       {/* Items */}
       <div className="flex flex-col divide-y divide-gray-50">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-gray-50/60"
-          >
-            <div className="shrink-0">{statusIcon[task.status]}</div>
-            <div className="min-w-0 flex-1">
-              <p
-                className={`truncate text-[13px] font-medium ${
-                  task.status === "completed"
-                    ? "text-gray-400 line-through"
-                    : "text-gray-800"
-                }`}
+        {displayedTasks.length > 0 ? (
+          displayedTasks.map((task) => (
+            <div
+              key={task.id}
+              className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-gray-50/60"
+            >
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  await onToggle(task.id);
+                }}
+                className="shrink-0 focus:outline-none cursor-pointer"
               >
-                {task.title}
-              </p>
-              <div className="mt-0.5 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${statusBadgeClass[task.status]}`}
+                {statusIcon(task.status)}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`truncate text-[13px] font-medium ${
+                    task.status === "completed"
+                      ? "text-gray-400 line-through"
+                      : "text-gray-800"
+                  }`}
                 >
-                  {task.category}
-                </span>
+                  {task.title}
+                </p>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${getCategoryBadgeClass(task)}`}
+                  >
+                    {getCategoryLabel(task)}
+                  </span>
+                </div>
               </div>
+              <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                {getDueTimeLabel(task.due_date)}
+              </span>
             </div>
-            <span className="shrink-0 text-[11px] font-medium text-gray-400">
-              {task.dueTime}
-            </span>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-[12px] font-medium text-gray-400">No tasks for today</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Footer */}
@@ -460,12 +502,56 @@ function TaskListCard({ tasks }: { tasks: typeof mockTasks }) {
 /* ------------------------------------------------------------------ */
 
 export default function DashboardPage() {
+  const { stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useDashboard();
+  const { tasks, loading: tasksLoading, error: tasksError, createTask, updateTask, refetch: refetchTasks } = useTasks();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { stats, loading, error } = useDashboard();
+  // Listen for topbar "New Task" button event
+  useEffect(() => {
+    const handler = () => { setDrawerOpen(true); };
+    window.addEventListener("open-new-task-drawer", handler);
+    return () => window.removeEventListener("open-new-task-drawer", handler);
+  }, []);
 
-  if (loading) return <DashboardSkeleton />;
+  const handleDrawerSubmit = async (data: DrawerFormData) => {
+    try {
+      await createTask({
+        title: data.name,
+        description: data.description,
+        priority: data.priority,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+      });
+      setDrawerOpen(false);
+      // Refresh both stats and tasks list
+      await Promise.all([refetchStats(), refetchTasks()]);
+    } catch (err) {
+      console.error("Error creating task:", err);
+      alert(err instanceof Error ? err.message : "Failed to create task");
+    }
+  };
 
-  if (error || !stats) {
+  const handleToggleTask = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const nextStatus: Task["status"] =
+      task.status === "todo"
+        ? "in_progress"
+        : task.status === "in_progress"
+        ? "completed"
+        : "todo";
+    
+    try {
+      await updateTask(id, { status: nextStatus });
+      // Refresh stats card to reflect updated completions
+      await refetchStats();
+    } catch (err) {
+      console.error("Error toggling task:", err);
+    }
+  };
+
+  if (statsLoading || tasksLoading) return <DashboardSkeleton />;
+
+  if (statsError || tasksError || !stats) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-red-500">Failed to load dashboard. Please refresh.</p>
@@ -475,7 +561,7 @@ export default function DashboardPage() {
 
   // Readiness breakdown derived from real score
   const activeTasks = Math.max(stats.totalTasks - stats.completedTasks, 0);
-  const roadmapProgress = typeof (stats as any).roadmapProgress === "number" ? (stats as any).roadmapProgress : mockStats.roadmapProgress;
+  const roadmapProgress = stats.roadmapCount;
   const taskCompletionRate =
     stats.totalTasks > 0
       ? Math.round((stats.completedTasks / stats.totalTasks) * 100)
@@ -490,30 +576,28 @@ export default function DashboardPage() {
     { label: "Active", value: Math.min(activeTasks * 15, 100), color: "#10b981" },
   ];
 
-  // Placeholder roadmaps section — Meet will replace with real data once roadmaps are persisted
-  const placeholderRoadmaps = [
-    { id: "1", title: "Generate your first roadmap →", progress: 0, totalSteps: 0, completedSteps: 0, icon: Code2, color: "#3b82f6" },
-    { id: "2", title: "Upload resume for AI roadmap", progress: 0, totalSteps: 0, completedSteps: 0, icon: Brain, color: "#8b5cf6" },
-    { id: "3", title: "Start placement preparation", progress: 0, totalSteps: 0, completedSteps: 0, icon: Target, color: "#f59e0b" },
-  ];
-
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 py-4 lg:px-6 lg:py-5">
       {/* ── Readiness + Stats ─────────────────────────────────────── */}
       <ReadinessSection
         score={stats.readinessScore}
         breakdown={breakdown}
+        stats={stats}
       />
 
       {/* ── Active Roadmaps + Today's Tasks ───────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <RoadmapListCard roadmaps={mockRoadmaps} />
-        <TaskListCard tasks={mockTasks} />
+        <TaskListCard tasks={tasks} onToggle={handleToggleTask} />
       </div>
+
+      <TaskDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSubmit={handleDrawerSubmit}
+        editingTask={null}
+        saving={false}
+      />
     </div>
-
-
-
-
   );
 }

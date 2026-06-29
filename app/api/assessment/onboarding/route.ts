@@ -95,202 +95,137 @@ Provide 2-3 realistic resource references per node.
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = OnboardingSchema.parse(await request.json());
+    
+    // Fetch the full user object from Clerk
+    const user = await currentUser();
 
-    // A. Parse and process name fields
-    const parts = body.fullName.trim().split(/\s+/);
-    const firstName = parts[0] || "";
+    // Replace this block in your route.ts:
+    const rawFullName = body.fullName || 
+                        `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || 
+                        "Anonymous User"; // Default fallback
+
+    const parts = rawFullName.split(/\s+/);
+    const firstName = parts[0] || "Anonymous";
     const lastName = parts.slice(1).join(" ") || "";
+    const finalFullName = rawFullName; // Ensure this is not null/empty
 
-    // B. Serialize nested JSON structures
-    const educationJson = JSON.stringify({
-      college: body.college,
-      branch: body.branch,
-      yearOfStudy: body.yearOfStudy,
-    });
-
-    const experienceJson = JSON.stringify({
-      experienceLevel: body.experienceLevel,
-      projectCount: body.projectCount,
-      hasInternship: body.hasInternship,
-    });
+    const educationJson = JSON.stringify({ college: body.college, branch: body.branch, yearOfStudy: body.yearOfStudy });
+    const experienceJson = JSON.stringify({ experienceLevel: body.experienceLevel, projectCount: body.projectCount, hasInternship: body.hasInternship });
 
     const db = createServerSupabaseClient();
 
     // C. Upsert the User record
-    const { data: userRecord, error: userError } = await db
-      .from("users")
-      .upsert({
-        clerk_id: userId,
-        email: body.email,
-        first_name: firstName,
-        last_name: lastName,
-        target_role: body.targetRole,
-        skills: body.skills,
-        education: educationJson,
-        experience: experienceJson,
-        assessment_completed: true,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: "clerk_id"
-      })
-      .select()
-      .single();
+    const { data: userRecord, error: userError } = await db.from("users").upsert({
+      id:userId,clerk_id: userId, email: body.email,full_name: finalFullName, first_name: firstName, last_name: lastName,
+      target_role: body.targetRole, skills: body.skills, education: educationJson,
+      experience: experienceJson, assessment_completed: true, updated_at: new Date().toISOString(),
+    }, { onConflict: "clerk_id" }).select().single();
 
-    if (userError) {
-      console.error("[/api/assessment/onboarding] Supabase user upsert error:", userError);
-      return NextResponse.json({ error: "Failed to persist user profile details" }, { status: 500 });
-    }
+    if (userError) throw userError;
+
+    // ==========================================
+    // NEW: DYNAMIC SCORING ALGORITHM
+    // ==========================================
+    let dynamicScore = 0;
+    const exp = body.experienceLevel.toLowerCase();
+    if (exp.includes("mid") || exp.includes("advanced")) dynamicScore += 40;
+    else if (exp.includes("junior")) dynamicScore += 25;
+    else dynamicScore += 10;
+
+    const proj = body.projectCount;
+    if (proj.includes("5")) dynamicScore += 25;
+    else if (proj.includes("3")) dynamicScore += 15;
+    else if (proj.includes("1")) dynamicScore += 10;
+
+    if (body.hasInternship) dynamicScore += 15;
+    dynamicScore += Math.min(body.skills.length * 2, 20); // Max 20 points for skills
+    
+    // Clamp to 100 max
+    const finalScore = Math.max(0, Math.min(dynamicScore, 100));
+    const feedbackStr = `Profile mapped successfully for ${body.targetRole} track.`;
+
+    await db.from("assessment_results").upsert({
+      user_id: userId,
+      assessment_id: "onboarding-diagnostic",
+      score: finalScore,
+      feedback: feedbackStr,
+      answers: body,
+      completed_at: new Date().toISOString()
+    }, { onConflict: "user_id,assessment_id" });
+    // ==========================================
 
     // D. Calculate Skill Gaps for the Roadmap Generation
     const required = getRequiredSkills(body.targetRole);
     const lowerUserSkills = new Set(body.skills.map(s => s.toLowerCase()));
     let skillGaps = required.filter(s => !lowerUserSkills.has(s.toLowerCase()));
-    if (skillGaps.length === 0) {
-      skillGaps = required;
-    }
+    if (skillGaps.length === 0) skillGaps = required;
 
     // E. Generate the Roadmap details using Gemini Flash
     let roadmapData;
     try {
       const model = getGeminiFlashModel();
       const prompt = buildPrompt(body.targetRole, skillGaps);
-      
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { 
-          responseMimeType: "application/json",
-          responseSchema: roadmapResponseSchema as any
-        },
+        generationConfig: { responseMimeType: "application/json", responseSchema: roadmapResponseSchema as any },
       });
-      
-      const responseText = result.response.text().trim();
-      const cleanJsonString = responseText.replace(/^```json\s*|```$/gi, "").trim();
-      roadmapData = JSON.parse(cleanJsonString);
+      roadmapData = JSON.parse(result.response.text().replace(/^```json\s*|```$/gi, "").trim());
     } catch (error) {
-      console.warn("[/api/assessment/onboarding] Gemini roadmap call failed, deploying mock fallback:", error);
+      console.warn("Gemini roadmap call failed, deploying mock fallback:", error);
       roadmapData = {
         title: `${body.targetRole} Preparation Path`,
-        description: `Custom curriculum focusing on bridging your skills gaps: ${skillGaps.slice(0, 3).join(", ")}.`,
+        description: `Custom curriculum focusing on bridging your skills gaps.`,
         estimatedWeeks: 8,
         nodes: skillGaps.slice(0, 4).map((skill, index) => ({
-          name: skill,
-          description: `Master fundamental and practical concepts of ${skill} to qualify for target industry standards.`,
-          level: index === 0 ? "beginner" : index < 3 ? "intermediate" : "advanced",
-          estimatedDays: 5 + index * 2,
-          resources: [
-            {
-              title: `${skill} Documentation`,
-              url: "https://developer.mozilla.org/en-US/",
-              type: "documentation"
-            },
-            {
-              title: `Comprehensive ${skill} Course`,
-              url: "https://youtube.com",
-              type: "video"
-            }
-          ],
+          name: skill, description: `Master fundamental concepts of ${skill}.`,
+          level: index === 0 ? "beginner" : "intermediate",
+          estimatedDays: 5,
+          resources: [],
           tasks: [
-            { id: `t-${index}-1`, title: `Learn core syntax and features of ${skill}`, completed: false },
-            { id: `t-${index}-2`, title: `Build a mini practice application using ${skill}`, completed: false }
+            { id: `t-${index}-1`, title: `Learn core syntax of ${skill}`, completed: false },
           ]
         }))
       };
     }
 
     // F. Save the Roadmap entity in the Database
-    const { data: roadmap, error: roadmapError } = await db
-      .from("roadmaps")
-      .insert({
-        user_id: userId,
-        title: roadmapData.title,
-        description: roadmapData.description,
-        target_role: body.targetRole,
-        estimated_weeks: roadmapData.estimatedWeeks || 8,
-      })
-      .select("id")
-      .single();
+    const { data: roadmap, error: roadmapError } = await db.from("roadmaps").insert({
+        user_id: userId, title: roadmapData.title, description: roadmapData.description,
+        target_role: body.targetRole, estimated_weeks: roadmapData.estimatedWeeks || 8, is_active: true
+      }).select("id").single();
 
-    if (roadmapError || !roadmap) {
-      console.error("[/api/assessment/onboarding] Supabase roadmap save error:", roadmapError);
-      return NextResponse.json({ error: "Failed to persist roadmap entity" }, { status: 500 });
-    }
+    if (roadmapError) throw roadmapError;
 
     // G. Save Skill Nodes steps
     const skillNodeRows = (roadmapData.nodes || []).map((node: any, index: number) => ({
-      roadmap_id: roadmap.id,
-      user_id: userId,
-      name: node.name,
-      description: node.description,
+      roadmap_id: roadmap.id, user_id: userId, name: node.name, description: node.description,
       level: ["beginner", "intermediate", "advanced"].includes(node.level) ? node.level : "beginner",
       estimated_days: typeof (node.estimatedDays || node.estimated_days) === "number" ? (node.estimatedDays || node.estimated_days) : 5,
-      status: index === 0 ? "in_progress" : "not_started",
-      resources: node.resources || [],
-      tasks: node.tasks || [],
-      dependencies: node.dependencies || [],
+      status: index === 0 ? "in_progress" : "not_started", resources: node.resources || [],
+      tasks: node.tasks || [], dependencies: node.dependencies || [],
     }));
 
-    if (skillNodeRows.length > 0) {
-      const { error: nodesError } = await db
-        .from("skill_nodes")
-        .insert(skillNodeRows);
-      
-      if (nodesError) {
-        console.error("[/api/assessment/onboarding] Supabase skill nodes insert error:", nodesError);
-      }
-    }
+    if (skillNodeRows.length > 0) await db.from("skill_nodes").insert(skillNodeRows);
 
-    // H. Save Tasks (to support `/assessment/results` which displays nextSteps/tasks)
+    // H. Save Tasks
     const taskRows: any[] = [];
     (roadmapData.nodes || []).forEach((node: any) => {
       (node.tasks || []).forEach((task: any) => {
         taskRows.push({
-          roadmap_id: roadmap.id,
-          user_id: userId,
-          title: task.title || task.name || "Task",
-          description: task.description || "",
-          status: task.completed ? "completed" : "todo",
-          priority: "medium",
+          roadmap_id: roadmap.id, user_id: userId, title: task.title || task.name || "Task",
+          description: task.description || "", status: task.completed ? "completed" : "todo", priority: "medium",
         });
       });
     });
 
-    if (taskRows.length === 0) {
-      (roadmapData.nodes || []).forEach((node: any, index: number) => {
-        taskRows.push({
-          roadmap_id: roadmap.id,
-          user_id: userId,
-          title: node.name,
-          description: node.description,
-          status: index === 0 ? "in_progress" : "todo",
-          priority: index === 0 ? "high" : "medium",
-        });
-      });
-    }
+    if (taskRows.length > 0) await db.from("tasks").insert(taskRows);
 
-    if (taskRows.length > 0) {
-      const { error: tasksError } = await db
-        .from("tasks")
-        .insert(taskRows);
-
-      if (tasksError) {
-        console.error("[/api/assessment/onboarding] Supabase tasks insert error:", tasksError);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      userId,
-      user: userRecord,
-      roadmapId: roadmap.id,
-    }, { status: 201 });
-
+    return NextResponse.json({ success: true, userId, user: userRecord, roadmapId: roadmap.id }, { status: 201 });
   } catch (error) {
     console.error("[/api/assessment/onboarding] Server processing error:", error);
-    return NextResponse.json({ error: "Internal Server Processing Error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

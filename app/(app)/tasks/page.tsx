@@ -12,14 +12,14 @@ import { useTasks, type Task, type TaskPriority } from "@/hooks/use-tasks";
 type TaskSource = "ai-generated" | "roadmap" | "custom";
 type FilterTab = "all" | "in_progress" | "todo" | "completed";
 
-interface DrawerFormData {
+export interface DrawerFormData {
   name: string;
   priority: TaskPriority;
   dueDate: string;
   description: string;
 }
 
-const emptyForm: DrawerFormData = {
+export const emptyForm: DrawerFormData = {
   name: "",
   priority: "medium",
   dueDate: "",
@@ -34,7 +34,7 @@ const filterTabs: { key: FilterTab; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 
-const priorityConfig: Record<
+export const priorityConfig: Record<
   TaskPriority,
   { label: string; bg: string; text: string; dot: string }
 > = {
@@ -179,7 +179,7 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
 }
 
 /* ── Task Drawer ────────────────────────────────────────────────────── */
-function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
+export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: DrawerFormData) => Promise<void>;
@@ -343,23 +343,28 @@ export default function TasksPage() {
   );
 
   const handleDrawerSubmit = async (data: DrawerFormData) => {
-    if (editingTask) {
-      await updateTask(editingTask.id, {
-        title: data.name,
-        description: data.description,
-        priority: data.priority,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-      });
-    } else {
-      await createTask({
-        title: data.name,
-        description: data.description,
-        priority: data.priority,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-      });
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, {
+          title: data.name,
+          description: data.description,
+          priority: data.priority,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        });
+      } else {
+        await createTask({
+          title: data.name,
+          description: data.description,
+          priority: data.priority,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        });
+      }
+      setDrawerOpen(false);
+      setEditingTask(null);
+    } catch (err) {
+      console.error("Error saving task:", err);
+      alert(err instanceof Error ? err.message : "Failed to save task");
     }
-    setDrawerOpen(false);
-    setEditingTask(null);
   };
 
   if (loading) {
