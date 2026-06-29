@@ -343,23 +343,28 @@ export default function TasksPage() {
   );
 
   const handleDrawerSubmit = async (data: DrawerFormData) => {
-    if (editingTask) {
-      await updateTask(editingTask.id, {
-        title: data.name,
-        description: data.description,
-        priority: data.priority,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-      });
-    } else {
-      await createTask({
-        title: data.name,
-        description: data.description,
-        priority: data.priority,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-      });
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, {
+          title: data.name,
+          description: data.description,
+          priority: data.priority,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        });
+      } else {
+        await createTask({
+          title: data.name,
+          description: data.description,
+          priority: data.priority,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        });
+      }
+      setDrawerOpen(false);
+      setEditingTask(null);
+    } catch (err) {
+      console.error("Error saving task:", err);
+      alert(err instanceof Error ? err.message : "Failed to save task");
     }
-    setDrawerOpen(false);
-    setEditingTask(null);
   };
 
   if (loading) {
