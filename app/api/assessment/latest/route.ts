@@ -1,21 +1,24 @@
-/**
- * /api/assessment/latest/route.ts
- * Secure server-side fetch to bypass frontend Supabase RLS token issues.
- */
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export async function GET() {
   const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const db = createServerSupabaseClient();
 
   try {
-    // 1. Fetch the latest active roadmap for this authenticated user
+    // 1. Fetch the computed score
+    const { data: assessment } = await db
+      .from("assessment_results")
+      .select("score, feedback")
+      .eq("user_id", userId)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 2. Fetch the latest active roadmap
     const { data: roadmap, error: roadmapError } = await db
       .from("roadmaps")
       .select("*")
@@ -24,30 +27,23 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
-    if (roadmapError) throw roadmapError;
     
-    if (!roadmap) {
-      return NextResponse.json({ roadmap: null, tasks: [] });
-    }
+    if (!roadmap) return NextResponse.json({ roadmap: null, assessment: null, tasks: [] });
 
-    // 2. Fetch all accompanying tasks assigned to this roadmap
-    const { data: tasks, error: tasksError } = await db
+    // 3. Fetch tasks from the tasks table (since your team's code places them here now)
+    const { data: tasks } = await db
       .from("tasks")
-      .select("description")
+      .select("title")
       .eq("roadmap_id", roadmap.id)
-      .eq("user_id", userId)
       .order("created_at", { ascending: true });
-
-    if (tasksError) throw tasksError;
 
     return NextResponse.json({
       roadmap,
-      tasks: tasks ? tasks.map((t) => t.description) : []
+      assessment, // Exposing this to the UI
+      tasks: tasks ? tasks.map((t) => t.title) : []
     });
     
   } catch (error: any) {
-    console.error("Server-side results fetch error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
