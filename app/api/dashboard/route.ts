@@ -86,6 +86,12 @@ export async function GET() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
 
+    // ── 6. Interview count ─────────────────────────────────────────────────
+    const { count: interviewCount } = await db
+      .from("interview_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+
     return NextResponse.json({
       readinessScore,
       totalTasks,
@@ -93,6 +99,7 @@ export async function GET() {
       activeTasks,
       streak,
       roadmapCount: roadmapCount ?? 0,
+      totalInterviews: interviewCount ?? 0,
       recentActivities,
     });
   } catch (error) {
