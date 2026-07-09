@@ -6,7 +6,7 @@ import {
   Plus, CheckCircle2, Circle, Clock, Calendar, Pencil, Trash2, X,
   Sparkles, Map, Flag, ChevronRight, Target,
 } from "lucide-react";
-import { useTasks, type Task, type TaskPriority } from "@/hooks/use-tasks";
+import { useTasks, type Task } from "@/hooks/use-tasks";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 type TaskSource = "ai-generated" | "roadmap" | "custom";
@@ -14,14 +14,12 @@ type FilterTab = "all" | "in_progress" | "todo" | "completed";
 
 export interface DrawerFormData {
   name: string;
-  priority: TaskPriority;
   dueDate: string;
   description: string;
 }
 
 export const emptyForm: DrawerFormData = {
   name: "",
-  priority: "medium",
   dueDate: "",
   description: "",
 };
@@ -33,15 +31,6 @@ const filterTabs: { key: FilterTab; label: string }[] = [
   { key: "in_progress", label: "In Progress" },
   { key: "completed", label: "Completed" },
 ];
-
-export const priorityConfig: Record<
-  TaskPriority,
-  { label: string; bg: string; text: string; dot: string }
-> = {
-  high: { label: "High Priority", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
-  medium: { label: "Medium Priority", bg: "bg-amber-50", text: "text-amber-600", dot: "bg-amber-500" },
-  low: { label: "Low Priority", bg: "bg-gray-100", text: "text-gray-500", dot: "bg-gray-400" },
-};
 
 // Map roadmap_id presence to a source badge
 function getSource(task: Task): TaskSource {
@@ -59,7 +48,7 @@ const sourceConfig: Record<
   custom: { label: "Custom", bg: "bg-emerald-50", text: "text-emerald-600", icon: Flag },
 };
 
-function formatDate(iso: string | null) {
+function formatDate(iso: string | null | undefined) {
   if (!iso) return "No due date";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -105,7 +94,6 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;
 }) {
-  const priority = priorityConfig[task.priority];
   const source = sourceConfig[getSource(task)];
   const SourceIcon = source.icon;
   const isCompleted = task.status === "completed";
@@ -144,10 +132,6 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
                   : task.status === "in_progress" ? "bg-blue-50 text-blue-600"
                   : "bg-gray-50 text-gray-500"}`}>
                 {task.status === "in_progress" ? "In Progress" : task.status === "completed" ? "Completed" : "To Do"}
-              </span>
-              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${priority.bg} ${priority.text}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${priority.dot}`} />
-                {priority.label}
               </span>
               <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${source.bg} ${source.text}`}>
                 <SourceIcon size={10} strokeWidth={2} />
@@ -191,10 +175,12 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
   useEffect(() => {
     if (editingTask) {
       setFormData({
-        name: editingTask.title,
-        priority: editingTask.priority,
-        dueDate: editingTask.due_date ? editingTask.due_date.split("T")[0] : "",
-        description: editingTask.description,
+        name: editingTask.title || "",
+        // Safe check for string splitting in case the DB due_date format isn't standard
+        dueDate: (editingTask.due_date && typeof editingTask.due_date === "string") 
+          ? editingTask.due_date.split("T")[0] 
+          : "",
+        description: editingTask.description || "",
       });
     } else {
       setFormData(emptyForm);
@@ -241,25 +227,6 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="h-10 rounded-lg border border-gray-200 bg-gray-50/50 px-3.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] font-medium text-gray-700">Priority</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["low", "medium", "high"] as TaskPriority[]).map((p) => {
-                      const cfg = priorityConfig[p];
-                      const isActive = formData.priority === p;
-                      return (
-                        <button key={p} type="button"
-                          onClick={() => setFormData({ ...formData, priority: p })}
-                          className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all
-                            ${isActive ? `${cfg.bg} ${cfg.text} border-current` : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-                          {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -348,14 +315,12 @@ export default function TasksPage() {
         await updateTask(editingTask.id, {
           title: data.name,
           description: data.description,
-          priority: data.priority,
-          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+          due_date: data.dueDate ? new Date(data.dueDate).toISOString() : null,
         });
       } else {
         await createTask({
           title: data.name,
           description: data.description,
-          priority: data.priority,
           dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
         });
       }

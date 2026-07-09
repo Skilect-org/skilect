@@ -74,16 +74,18 @@ export async function GET() {
     });
 
     // 4. Format roadmaps to match camelCase expectations on frontend
-    const formattedRoadmaps = roadmaps.map((roadmap) => ({
-      id: roadmap.id,
-      title: roadmap.title,
-      description: roadmap.description,
-      targetRole: roadmap.target_role,
-      estimatedWeeks: roadmap.estimated_weeks || 0,
-      createdAt: roadmap.created_at,
-      nodes: nodesByRoadmapId[roadmap.id] || [],
-      skill_nodes: nodesByRoadmapId[roadmap.id] || [],
-    }));
+    // app/api/roadmaps/route.ts
+  const formattedRoadmaps = roadmaps.map((roadmap) => ({
+    id: roadmap.id,
+    title: roadmap.title,
+    description: roadmap.description,
+    targetRole: roadmap.target_role,
+    estimatedWeeks: roadmap.estimated_weeks || 0,
+    createdAt: roadmap.created_at,
+    is_active: roadmap.is_active,
+    nodes: nodesByRoadmapId[roadmap.id] || [],
+    skill_nodes: nodesByRoadmapId[roadmap.id] || [],
+  }));
 
     return NextResponse.json({ roadmaps: formattedRoadmaps });
 

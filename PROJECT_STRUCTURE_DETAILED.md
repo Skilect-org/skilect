@@ -1,6 +1,10 @@
 **Project: Skilect — Detailed Folder & File Overview**
 
-This document lists the main folders and files in the workspace and provides short descriptions of what each file contains and its purpose.
+This document is intended to be used as a handoff artifact for another AI assistant or teammate. It gives a structured summary of the repository layout, the main app areas, and the purpose of the most important files so the next assistant can understand the project quickly.
+
+**Copy-paste prompt for another chatbot**
+
+You are being given the repository context for Skilect. Use the structure and file descriptions below as the source of truth for understanding the app. Please summarize the project architecture, explain how the main features are organized, identify where the core user flows live, and answer follow-up questions about routes, components, APIs, services, and data models. Keep your response grounded in the files and folders listed here.
 
 **Top Level**
 - **README.md**: [README.md](README.md) — Project overview, goals, tech stack, architecture, team, and workflow (human-facing project summary).
@@ -11,6 +15,9 @@ This document lists the main folders and files in the workspace and provides sho
 - **ENV_SETUP.md**: [ENV_SETUP.md](ENV_SETUP.md) — Environment variable setup instructions (Clerk, Supabase, Neo4j, Gemini, Sarvam).
 - **FOLDER_STRUCTURE.md**: [FOLDER_STRUCTURE.md](FOLDER_STRUCTURE.md) — Existing higher-level project tree and route/API summaries (auto-generated reference).
 - **supabase-schema.sql**: [supabase-schema.sql](supabase-schema.sql) — Database schema for Supabase (Postgres) used by the app.
+
+
+
 
 **app/** (Next.js App Router)
 - **app/layout.tsx**: [app/layout.tsx](app/layout.tsx) — Root HTML layout, font setup (Google fonts), `ClerkProvider` wrapper, global CSS import, page metadata.
@@ -66,13 +73,9 @@ This document lists the main folders and files in the workspace and provides sho
 
 ---
 
-If you want a deeper per-file content summary (e.g., summarise every `page.tsx` or every file under `components/` and `lib/`), I can expand this document to include brief extracts and the first function/class definitions for each file. Tell me whether you want:
+This file is now structured to serve as a practical repository handoff document. It can be passed directly to another chatbot as project context for architecture review, codebase navigation, feature explanation, or implementation planning.
 
-- Expand to every file under `app/` (small): include first 20 lines and a one-sentence summary.
-- Expand to every file in `components/` and `lib/` (medium): include short summaries.
-- Full exhaustive summary for all 160+ files (large): will take longer but I can generate it.
-
-Generated on 2026-06-24.
+Generated on 2026-07-07.
 
 ---
 

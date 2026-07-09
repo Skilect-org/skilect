@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Navigation data                                                    */
+/* Navigation data                                                   */
 /* ------------------------------------------------------------------ */
 
 const mainNavItems = [
@@ -36,18 +36,35 @@ const accountNavItems = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Sidebar content (shared between desktop & mobile)                  */
+/* Sidebar content (shared between desktop & mobile)                  */
 /* ------------------------------------------------------------------ */
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useUser();
+  const [readinessScore, setReadinessScore] = useState<number>(0);
 
   const firstName = user?.firstName ?? "User";
   const avatarUrl = user?.imageUrl;
 
-  /* Placement readiness score — hardcoded for now; swap for real data */
-  const readinessScore = 82;
+  // Fetch the actual readiness score on mount
+  useEffect(() => {
+    const fetchScore = async () => {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.readinessScore === "number") {
+            setReadinessScore(data.readinessScore);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch readiness score", error);
+      }
+    };
+    
+    fetchScore();
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -219,27 +236,25 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mobile drawer toggle button                                        */
+/* Mobile drawer toggle button                                        */
 /* ------------------------------------------------------------------ */
 
 export function MobileSidebarToggle() {
-  return null; // handled internally via DashboardSidebar
+  return null; 
 }
 
 /* ------------------------------------------------------------------ */
-/*  Main sidebar export                                                */
+/* Main sidebar export                                                */
 /* ------------------------------------------------------------------ */
 
 export function DashboardSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  /* Close mobile drawer on route change */
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  /* Lock body scroll when mobile drawer is open */
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = "hidden";
@@ -255,7 +270,6 @@ export function DashboardSidebar() {
 
   return (
     <>
-      {/* ── Mobile hamburger button ─────────────────────────────── */}
       <button
         type="button"
         aria-label="Open sidebar"
@@ -265,7 +279,6 @@ export function DashboardSidebar() {
         <Menu size={18} />
       </button>
 
-      {/* ── Desktop sidebar (fixed) ─────────────────────────────── */}
       <aside
         className="fixed inset-y-0 left-0 z-30 hidden w-[280px] border-r border-gray-200/80 bg-white lg:block"
         style={{
@@ -275,11 +288,8 @@ export function DashboardSidebar() {
         <SidebarContent />
       </aside>
 
-      {/* Desktop spacer — pushes main content right */}
       <div className="hidden w-[280px] shrink-0 lg:block" aria-hidden="true" />
 
-      {/* ── Mobile overlay + drawer ─────────────────────────────── */}
-      {/* Backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           mobileOpen
@@ -290,7 +300,6 @@ export function DashboardSidebar() {
         aria-hidden="true"
       />
 
-      {/* Drawer */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-[280px] border-r border-gray-200/80 bg-white transition-transform duration-300 ease-out lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -299,7 +308,6 @@ export function DashboardSidebar() {
           boxShadow: mobileOpen ? "4px 0 24px rgba(0,0,0,0.08)" : "none",
         }}
       >
-        {/* Close button */}
         <button
           type="button"
           aria-label="Close sidebar"

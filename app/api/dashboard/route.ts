@@ -1,22 +1,8 @@
-/**
- * GET /api/dashboard
- *
- * Returns aggregated stats for the authenticated user's dashboard:
- *   - Readiness score (% of all tasks completed)
- *   - Task counts (total / completed / active)
- *   - Current daily streak
- *   - Recent activity feed (last 8 task events)
- *   - Roadmap count
- *
- * Auth: Clerk  |  DB: Supabase (service-role)
- */
-
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export async function GET() {
-  // ── 1. Auth guard ──────────────────────────────────────────────────────────
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,27 +11,85 @@ export async function GET() {
   const db = createServerSupabaseClient();
 
   try {
-    // ── 2. Fetch all user tasks ────────────────────────────────────────────
-    const { data: tasks, error: tasksError } = await db
+    // 1. Fetch standalone tasks from the tasks table
+    const { data: dbTasks, error: tasksError } = await db
       .from("tasks")
-      .select("id, status, completed_at, created_at, title, priority")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .select("id, status, updated_at, created_at, title, roadmap_id, due_date")
+      .eq("user_id", userId);
 
     if (tasksError) throw tasksError;
 
-    const totalTasks = tasks?.length ?? 0;
-    const completedTasks =
-      tasks?.filter((t) => t.status === "completed").length ?? 0;
-    const activeTasks =
-      tasks?.filter((t) => t.status === "in_progress").length ?? 0;
-    const readinessScore =
-      totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    // 2. Fetch Active Roadmaps WITH their embedded skill_nodes tasks AND status
+    const { data: roadmaps } = await db
+      .from("roadmaps")
+      .select(`
+        id, 
+        title, 
+        target_role,
+        skill_nodes ( id, tasks, status )
+      `)
+      .eq("user_id", userId)
+      .eq("is_active", true);
 
-    // ── 3. Streak — consecutive days with ≥1 completion ───────────────────
-    const completionDates = (tasks ?? [])
-      .filter((t) => t.completed_at)
-      .map((t) => new Date(t.completed_at as string).toDateString());
+    // 3. Combine both task sources into one unified array strictly for global metrics
+    let allTasks = [...(dbTasks ?? [])];
+    const activeRoadmaps = [];
+
+    if (roadmaps && roadmaps.length > 0) {
+      for (const roadmap of roadmaps) {
+        
+        // Extract tasks embedded in skill_nodes to keep global task metrics accurate
+        if (roadmap.skill_nodes) {
+          roadmap.skill_nodes.forEach((node: any) => {
+            if (Array.isArray(node.tasks)) {
+              node.tasks.forEach((t: any) => {
+                const normalizedTask = {
+                  id: t.id,
+                  title: t.title,
+                  status: t.status || "todo",
+                  roadmap_id: roadmap.id,
+                  due_date: t.due_date || null,
+                  created_at: t.created_at || new Date().toISOString(),
+                  updated_at: t.updated_at || new Date().toISOString(),
+                };
+                allTasks.push(normalizedTask); // Add to global pool
+              });
+            }
+          });
+        }
+
+        // GROUND TRUTH FIX: Calculate roadmap progress strictly using high-level milestones (skill_nodes)
+        const rmTotal = roadmap.skill_nodes ? roadmap.skill_nodes.length : 0;
+        const rmCompleted = roadmap.skill_nodes 
+          ? roadmap.skill_nodes.filter((node: any) => node.status === "completed").length 
+          : 0;
+
+        const progress = rmTotal > 0 ? Math.round((rmCompleted / rmTotal) * 100) : 0;
+
+        // AUTOMATIC ARCHIVE LOGIC
+        if (rmTotal > 0 && rmCompleted === rmTotal) {
+          await db.from("roadmaps").update({ is_active: false }).eq("id", roadmap.id);
+          continue; 
+        }
+
+        activeRoadmaps.push({
+          id: roadmap.id,
+          title: roadmap.title,
+          target_role: roadmap.target_role,
+          totalSteps: rmTotal,        // Consistently shows milestone totals (e.g., 9, 6)
+          completedSteps: rmCompleted,  // Consistently shows completed milestones
+          progress: progress,
+          color: "#3b82f6" 
+        });
+      }
+    }
+
+    // 4. Calculate global task metrics using the COMBINED list
+    allTasks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const completionDates = allTasks
+      .filter((t) => t.status === "completed" && t.updated_at)
+      .map((t) => new Date(t.updated_at).toDateString());
 
     const uniqueDates = [...new Set(completionDates)].sort(
       (a, b) => new Date(b).getTime() - new Date(a).getTime()
@@ -63,32 +107,14 @@ export async function GET() {
       }
     }
 
-    // ── 4. Recent activity feed ────────────────────────────────────────────
-    const recentActivities = (tasks ?? []).slice(0, 8).map((t) => ({
-      id: t.id as string,
-      title: t.title as string,
-      description:
-        t.status === "completed"
-          ? "Task completed"
-          : t.status === "in_progress"
-          ? "Task in progress"
-          : "Task added",
-      timestamp: new Date(t.created_at as string).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-      }),
-      type: "task" as const,
-    }));
+    const totalTasks = allTasks.length;
+    const completedTasks = allTasks.filter((t) => t.status === "completed").length;
+    const activeTasks = allTasks.filter((t) => t.status === "in_progress" || t.status === "todo").length;
+    const readinessScore = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    // ── 5. Roadmap count ───────────────────────────────────────────────────
-    const { count: roadmapCount } = await db
-      .from("roadmaps")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    // ── 6. Interview count ─────────────────────────────────────────────────
+    // 5. Fetch Interview session count
     const { count: interviewCount } = await db
-      .from("interview_sessions")
+      .from("interviews")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
 
@@ -98,15 +124,12 @@ export async function GET() {
       completedTasks,
       activeTasks,
       streak,
-      roadmapCount: roadmapCount ?? 0,
+      roadmapCount: activeRoadmaps.length,
+      activeRoadmaps,
       totalInterviews: interviewCount ?? 0,
-      recentActivities,
     });
   } catch (error) {
     console.error("[/api/dashboard] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch dashboard data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
   }
 }

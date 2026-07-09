@@ -1,12 +1,10 @@
 /**
  * /api/tasks
  *
- * GET    — Fetch all tasks for the user (?status=  ?priority=)
- * POST   — Create a new task
- * PATCH  — Update a task (status, title, description, priority, dueDate)
- * DELETE — Delete a task (?id=uuid)
- *
- * Auth: Clerk  |  DB: Supabase service-role
+ * GET    — Fetch all tasks for the user (Combined from `tasks` table & `skill_nodes` JSON)
+ * POST   — Create a new task (Defaults to `tasks` table)
+ * PATCH  — Update a task (Checks `tasks` table first, falls back to `skill_nodes` JSON mutation)
+ * DELETE — Delete a task (Checks both locations)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,22 +12,20 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
-// ── Schemas ───────────────────────────────────────────────────────────────────
 const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional().default(""),
-  priority: z.enum(["low", "medium", "high"]).default("medium"),
   dueDate: z.string().nullable().optional(),
   roadmapId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateTaskSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(), // Relaxed from .uuid() to support nested roadmap task IDs
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   status: z.enum(["todo", "in_progress", "completed"]).optional(),
-  priority: z.enum(["low", "medium", "high"]).optional(),
   dueDate: z.string().nullable().optional(),
+  due_date: z.string().nullable().optional(), // Fallback to handle direct DB object merges
 });
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -41,96 +37,82 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get("status");
-  const priorityFilter = searchParams.get("priority");
-
   const db = createServerSupabaseClient();
 
-  let query = db
-    .from("tasks")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
+  // 1. Get standalone tasks
+  let query = db.from("tasks").select("*").eq("user_id", userId);
   if (statusFilter) query = query.eq("status", statusFilter);
-  if (priorityFilter) query = query.eq("priority", priorityFilter);
+  const { data: dbTasks, error: dbError } = await query;
+  if (dbError) return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
 
-  const { data: tasks, error } = await query;
+  let allTasks = [...(dbTasks ?? [])];
 
-  if (error) {
-    console.error("[GET /api/tasks]", error);
-    return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
+  // 2. Get roadmap milestone tasks from JSON arrays
+  const { data: roadmaps } = await db
+    .from("roadmaps")
+    .select('id, skill_nodes(id, tasks)')
+    .eq("user_id", userId);
+
+  if (roadmaps) {
+    roadmaps.forEach((rm) => {
+      rm.skill_nodes?.forEach((node: any) => {
+        if (Array.isArray(node.tasks)) {
+          node.tasks.forEach((t: any) => {
+            if (!statusFilter || t.status === statusFilter) {
+              allTasks.push({
+                ...t,
+                roadmap_id: rm.id,
+                node_id: node.id,
+                created_at: t.created_at || new Date().toISOString(),
+                updated_at: t.updated_at || new Date().toISOString(),
+              });
+            }
+          });
+        }
+      });
+    });
   }
 
-  return NextResponse.json({ tasks: tasks ?? [] });
+  allTasks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return NextResponse.json({ tasks: allTasks });
 }
 
 // ── POST ──────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body;
   try {
     body = CreateTaskSchema.parse(await request.json());
   } catch (err) {
-    return NextResponse.json(
-      { error: "Invalid request body", details: err },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid request", details: err }, { status: 400 });
   }
 
   const db = createServerSupabaseClient();
-
-  // Ensure user exists in users table to prevent foreign key errors
-  const { data: userExists, error: userCheckError } = await db
-    .from("users")
-    .select("clerk_id")
-    .eq("clerk_id", userId)
-    .maybeSingle();
-
-  if (userCheckError) {
-    console.error("[POST /api/tasks] User check error:", userCheckError);
-  }
+  const { data: userExists } = await db.from("users").select("clerk_id").eq("clerk_id", userId).maybeSingle();
 
   if (!userExists) {
-    try {
-      const clerkUser = await currentUser();
-      if (clerkUser) {
-        const fullName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "Unknown User";
-        const parts = fullName.split(/\s+/);
-        const firstName = parts[0] || "";
-        const lastName = parts.slice(1).join(" ") || "";
-
-        const { error: userSyncError } = await db.from("users").upsert({
-          clerk_id: userId,
-          email: clerkUser.emailAddresses[0]?.emailAddress || "user@example.com",
-          first_name: firstName,
-          last_name: lastName,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: "clerk_id"
-        });
-
-        if (userSyncError) {
-          console.error("[POST /api/tasks] Lazy user sync upsert error:", userSyncError);
-        }
-      }
-    } catch (err) {
-      console.error("[POST /api/tasks] Lazy user sync error:", err);
+    const clerkUser = await currentUser();
+    if (clerkUser) {
+      await db.from("users").upsert({
+        clerk_id: userId,
+        email: clerkUser.emailAddresses[0]?.emailAddress || "user@example.com",
+        first_name: clerkUser.firstName || "",
+        last_name: clerkUser.lastName || "",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "clerk_id" });
     }
   }
 
   const now = new Date().toISOString();
-
   const { data: task, error } = await db
     .from("tasks")
     .insert({
       user_id: userId,
       title: body.title,
       description: body.description,
-      priority: body.priority,
       status: "todo",
       due_date: body.dueDate ?? null,
       roadmap_id: body.roadmapId ?? null,
@@ -140,100 +122,118 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) {
-    console.error("[POST /api/tasks]", error);
-    return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
-  }
-
+  if (error) return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   return NextResponse.json({ task }, { status: 201 });
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
   const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body;
   try {
     body = UpdateTaskSchema.parse(await request.json());
   } catch (err) {
-    return NextResponse.json(
-      { error: "Invalid request body", details: err },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid request", details: err }, { status: 400 });
   }
 
-  const { id, dueDate, ...rest } = body;
+  const { id, dueDate, due_date, ...rest } = body;
   const now = new Date().toISOString();
+  
+  // Accept both formatting varieties gracefully
+  const resolvedDueDate = dueDate !== undefined ? dueDate : due_date;
 
   const payload: Record<string, unknown> = {
     ...rest,
     updated_at: now,
-    ...(dueDate !== undefined && { due_date: dueDate }),
-    // Stamp completed_at when marking done; clear it when un-completing
-    ...(rest.status === "completed" && { completed_at: now }),
-    ...(rest.status !== undefined && rest.status !== "completed" && { completed_at: null }),
+    ...(resolvedDueDate !== undefined && { due_date: resolvedDueDate }),
   };
 
   const db = createServerSupabaseClient();
 
-  const { data: task, error } = await db
+  // 1. Try updating in standard tasks table first
+  const { data: task } = await db
     .from("tasks")
     .update(payload)
     .eq("id", id)
-    .eq("user_id", userId) // ownership check
+    .eq("user_id", userId)
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error) {
-    console.error("[PATCH /api/tasks]", error);
-    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  if (task) {
+    return NextResponse.json({ task });
   }
 
-  if (!task) {
-    return NextResponse.json(
-      { error: "Task not found or access denied" },
-      { status: 404 }
-    );
+  // 2. Fallback: Search user roadmaps -> skill_nodes JSON arrays
+  const { data: roadmaps } = await db
+    .from("roadmaps")
+    .select('id, skill_nodes(id, tasks)')
+    .eq("user_id", userId);
+
+  if (roadmaps) {
+    for (const rm of roadmaps) {
+      for (const node of (rm.skill_nodes || [])) {
+        if (Array.isArray(node.tasks)) {
+          const taskIndex = node.tasks.findIndex((t: any) => t.id === id);
+          if (taskIndex !== -1) {
+            // Merge changes into JSON payload block
+            node.tasks[taskIndex] = { ...node.tasks[taskIndex], ...payload };
+            
+            const { error: updateError } = await db
+              .from("skill_nodes")
+              .update({ tasks: node.tasks })
+              .eq("id", node.id);
+
+            if (updateError) throw updateError;
+            
+            // Return decorated payload structure consistent with GET format
+            return NextResponse.json({ 
+              task: {
+                ...node.tasks[taskIndex],
+                roadmap_id: rm.id,
+                node_id: node.id
+              } 
+            });
+          }
+        }
+      }
+    }
   }
 
-  return NextResponse.json({ task });
+  return NextResponse.json({ error: "Task not found" }, { status: 404 });
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
   const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json({ error: "Missing task id" }, { status: 400 });
-  }
-
-  // Validate it's a UUID
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(id)) {
-    return NextResponse.json({ error: "Invalid task id" }, { status: 400 });
-  }
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing task id" }, { status: 400 });
 
   const db = createServerSupabaseClient();
 
-  const { error } = await db
-    .from("tasks")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId); // ownership check — can't delete another user's task
+  await db.from("tasks").delete().eq("id", id).eq("user_id", userId);
 
-  if (error) {
-    console.error("[DELETE /api/tasks]", error);
-    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+  const { data: roadmaps } = await db
+    .from("roadmaps")
+    .select('id, skill_nodes(id, tasks)')
+    .eq("user_id", userId);
+
+  if (roadmaps) {
+    for (const rm of roadmaps) {
+      for (const node of (rm.skill_nodes || [])) {
+        if (Array.isArray(node.tasks)) {
+          const originalLength = node.tasks.length;
+          const filteredTasks = node.tasks.filter((t: any) => t.id !== id);
+          
+          if (filteredTasks.length < originalLength) {
+            await db.from("skill_nodes").update({ tasks: filteredTasks }).eq("id", node.id);
+          }
+        }
+      }
+    }
   }
 
   return NextResponse.json({ success: true });

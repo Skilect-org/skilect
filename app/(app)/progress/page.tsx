@@ -131,6 +131,9 @@ export default function ProgressPage() {
     );
   }
 
+  // Dynamically grab the target role from the first active roadmap
+  const dynamicTargetRole = stats.activeRoadmaps?.[0]?.target_role || "Not set";
+
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 py-4 lg:px-8 lg:py-6">
       <div>
@@ -140,7 +143,7 @@ export default function ProgressPage() {
 
       <ReadinessHero
         score={stats.readinessScore}
-        targetRole="Software Engineer"
+        targetRole={dynamicTargetRole} // <-- Updated here!
         streak={stats.streak}
       />
 
