@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { UserButton } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation"; // Added useRouter
+import { useUser, UserButton } from "@clerk/nextjs";
 import { Plus, Sparkles } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                           */
+/* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
 function getGreeting(): string {
@@ -18,7 +17,7 @@ function getGreeting(): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Route-specific action buttons                                     */
+/* Route-specific action buttons                                      */
 /* ------------------------------------------------------------------ */
 
 interface ActionButton {
@@ -31,25 +30,26 @@ interface ActionButton {
 const routeActions: Record<string, ActionButton[]> = {
   "/dashboard": [
     { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Roadmap", icon: Sparkles, variant: "filled" },
+    { label: "Generate Roadmap", icon: Sparkles, variant: "filled", actionId: "generate-roadmap" },
   ],
   "/tasks": [
     { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Tasks with AI", icon: Sparkles, variant: "filled" },
+    { label: "Generate Tasks with AI", icon: Sparkles, variant: "filled", actionId: "generate-tasks" },
   ],
   "/roadmaps": [
     { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Roadmap", icon: Sparkles, variant: "filled" },
+    { label: "Generate Roadmap", icon: Sparkles, variant: "filled", actionId: "generate-roadmap" },
   ],
 };
 
 /* ------------------------------------------------------------------ */
-/* Component                                                         */
+/* Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export function DashboardTopbar() {
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter(); // Initialize the router
   const { user } = useUser();
 
   // Ensure this only runs on the client
@@ -80,7 +80,21 @@ export function DashboardTopbar() {
 
           const handleActionClick = () => {
             if (action.actionId === "new-task") {
-              window.dispatchEvent(new CustomEvent("open-new-task-drawer"));
+              if (pathname === "/tasks") {
+                // If already on the tasks page, open the drawer
+                window.dispatchEvent(new CustomEvent("open-new-task-drawer"));
+              } else {
+                // If anywhere else, redirect to the tasks page
+                router.push("/tasks");
+              }
+            } else if (action.actionId === "generate-roadmap") {
+              if (pathname === "/roadmaps") {
+                // Optional: If you ever add a roadmap drawer, you can dispatch it here
+                window.dispatchEvent(new CustomEvent("open-generate-roadmap"));
+              } else {
+                // Redirect to the roadmaps page
+                router.push("/roadmaps");
+              }
             } else {
               alert(`${action.label} is coming soon!`);
             }
@@ -126,7 +140,6 @@ export function DashboardTopbar() {
             }}
           />
         ) : (
-          // Optional: A skeleton loader to prevent layout shift
           <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
         )}
       </div>
