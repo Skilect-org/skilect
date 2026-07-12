@@ -1,12 +1,3 @@
-/**
- * /api/tasks
- *
- * GET    — Fetch all tasks for the user (Combined from `tasks` table & `skill_nodes` JSON)
- * POST   — Create a new task (Defaults to `tasks` table)
- * PATCH  — Update a task (Checks `tasks` table first, falls back to `skill_nodes` JSON mutation)
- * DELETE — Delete a task (Checks both locations)
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
@@ -20,12 +11,12 @@ const CreateTaskSchema = z.object({
 });
 
 const UpdateTaskSchema = z.object({
-  id: z.string(), // Relaxed from .uuid() to support nested roadmap task IDs
+  id: z.string(), 
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   status: z.enum(["todo", "in_progress", "completed"]).optional(),
   dueDate: z.string().nullable().optional(),
-  due_date: z.string().nullable().optional(), // Fallback to handle direct DB object merges
+  due_date: z.string().nullable().optional(), 
 });
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -58,9 +49,13 @@ export async function GET(request: NextRequest) {
       rm.skill_nodes?.forEach((node: any) => {
         if (Array.isArray(node.tasks)) {
           node.tasks.forEach((t: any) => {
-            if (!statusFilter || t.status === statusFilter) {
+            const currentStatus = t.status || "todo"; // Standardize dynamic roadmap task statuses
+            
+            if (!statusFilter || currentStatus === statusFilter) {
               allTasks.push({
                 ...t,
+                id: `${node.id}_${t.id}`, 
+                status: currentStatus, // FIX: Guarantees status field exists natively on delivery to frontend
                 roadmap_id: rm.id,
                 node_id: node.id,
                 created_at: t.created_at || new Date().toISOString(),
@@ -140,8 +135,6 @@ export async function PATCH(request: NextRequest) {
 
   const { id, dueDate, due_date, ...rest } = body;
   const now = new Date().toISOString();
-  
-  // Accept both formatting varieties gracefully
   const resolvedDueDate = dueDate !== undefined ? dueDate : due_date;
 
   const payload: Record<string, unknown> = {
@@ -150,22 +143,30 @@ export async function PATCH(request: NextRequest) {
     ...(resolvedDueDate !== undefined && { due_date: resolvedDueDate }),
   };
 
-  const db = createServerSupabaseClient();
-
-  // 1. Try updating in standard tasks table first
-  const { data: task } = await db
-    .from("tasks")
-    .update(payload)
-    .eq("id", id)
-    .eq("user_id", userId)
-    .select()
-    .maybeSingle();
-
-  if (task) {
-    return NextResponse.json({ task });
+  let targetTaskId = id;
+  let targetNodeId: string | null = null;
+  if (id.includes('_')) {
+    const parts = id.split('_');
+    targetNodeId = parts[0];
+    targetTaskId = parts[1];
   }
 
-  // 2. Fallback: Search user roadmaps -> skill_nodes JSON arrays
+  const db = createServerSupabaseClient();
+
+  if (!id.includes('_')) {
+    const { data: task } = await db
+      .from("tasks")
+      .update(payload)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .maybeSingle();
+
+    if (task) {
+      return NextResponse.json({ task });
+    }
+  }
+
   const { data: roadmaps } = await db
     .from("roadmaps")
     .select('id, skill_nodes(id, tasks)')
@@ -174,12 +175,17 @@ export async function PATCH(request: NextRequest) {
   if (roadmaps) {
     for (const rm of roadmaps) {
       for (const node of (rm.skill_nodes || [])) {
+        if (targetNodeId && node.id !== targetNodeId) continue;
+
         if (Array.isArray(node.tasks)) {
-          const taskIndex = node.tasks.findIndex((t: any) => t.id === id);
+          const taskIndex = node.tasks.findIndex((t: any) => t.id === targetTaskId);
           if (taskIndex !== -1) {
-            // Merge changes into JSON payload block
             node.tasks[taskIndex] = { ...node.tasks[taskIndex], ...payload };
             
+            if (node.tasks[taskIndex].id.includes('_')) {
+              node.tasks[taskIndex].id = targetTaskId;
+            }
+
             const { error: updateError } = await db
               .from("skill_nodes")
               .update({ tasks: node.tasks })
@@ -187,10 +193,10 @@ export async function PATCH(request: NextRequest) {
 
             if (updateError) throw updateError;
             
-            // Return decorated payload structure consistent with GET format
             return NextResponse.json({ 
               task: {
                 ...node.tasks[taskIndex],
+                id: `${node.id}_${targetTaskId}`, 
                 roadmap_id: rm.id,
                 node_id: node.id
               } 
@@ -212,9 +218,19 @@ export async function DELETE(request: NextRequest) {
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing task id" }, { status: 400 });
 
+  let targetTaskId = id;
+  let targetNodeId: string | null = null;
+  if (id.includes('_')) {
+    const parts = id.split('_');
+    targetNodeId = parts[0];
+    targetTaskId = parts[1];
+  }
+
   const db = createServerSupabaseClient();
 
-  await db.from("tasks").delete().eq("id", id).eq("user_id", userId);
+  if (!id.includes('_')) {
+    await db.from("tasks").delete().eq("id", id).eq("user_id", userId);
+  }
 
   const { data: roadmaps } = await db
     .from("roadmaps")
@@ -224,9 +240,11 @@ export async function DELETE(request: NextRequest) {
   if (roadmaps) {
     for (const rm of roadmaps) {
       for (const node of (rm.skill_nodes || [])) {
+        if (targetNodeId && node.id !== targetNodeId) continue;
+
         if (Array.isArray(node.tasks)) {
           const originalLength = node.tasks.length;
-          const filteredTasks = node.tasks.filter((t: any) => t.id !== id);
+          const filteredTasks = node.tasks.filter((t: any) => t.id !== targetTaskId);
           
           if (filteredTasks.length < originalLength) {
             await db.from("skill_nodes").update({ tasks: filteredTasks }).eq("id", node.id);

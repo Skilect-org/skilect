@@ -217,6 +217,9 @@ export default function DashboardPage() {
     try {
       await updateTask(id, { status: nextStatus });
       await Promise.all([refetchStats(), refetchTasks()]);
+      
+      // FIX: Tell the window context that mutations happened so the Sidebar fetches fresh data
+      window.dispatchEvent(new Event("refresh-readiness"));
     } catch (err) {
       console.error("Error toggling task:", err);
     }

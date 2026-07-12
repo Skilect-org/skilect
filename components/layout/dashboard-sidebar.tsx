@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -18,10 +19,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/* Navigation data                                                   */
-/* ------------------------------------------------------------------ */
-
 const mainNavItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/roadmaps", label: "Roadmaps", icon: Map },
@@ -35,10 +32,6 @@ const accountNavItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Sidebar content (shared between desktop & mobile)                  */
-/* ------------------------------------------------------------------ */
-
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useUser();
@@ -47,24 +40,41 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const firstName = user?.firstName ?? "User";
   const avatarUrl = user?.imageUrl;
 
-  // Fetch the actual readiness score on mount
-  useEffect(() => {
-    const fetchScore = async () => {
-      try {
-        const res = await fetch("/api/dashboard");
-        if (res.ok) {
-          const data = await res.json();
-          if (typeof data.readinessScore === "number") {
-            setReadinessScore(data.readinessScore);
-          }
+  const fetchScore = useCallback(async () => {
+    try {
+      // FIX: Appended a dynamic timestamp query parameter to absolutely destroy any Next.js client-side caches
+      const res = await fetch(`/api/dashboard?t=${Date.now()}`, { 
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
         }
-      } catch (error) {
-        console.error("Failed to fetch readiness score", error);
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.readinessScore === "number") {
+          setReadinessScore(data.readinessScore);
+        }
       }
-    };
-    
-    fetchScore();
+    } catch (error) {
+      console.error("Failed to fetch readiness score", error);
+    }
   }, []);
+
+  // Sync state cleanly whenever components trigger changes or paths switch
+  useEffect(() => {
+    fetchScore();
+    
+    // Listens for custom updates triggered explicitly from other pages
+    window.addEventListener("refresh-readiness", fetchScore);
+    window.addEventListener("focus", fetchScore); 
+    
+    return () => {
+      window.removeEventListener("refresh-readiness", fetchScore);
+      window.removeEventListener("focus", fetchScore);
+    };
+  }, [fetchScore, pathname]);
 
   return (
     <div className="flex h-full flex-col">
@@ -74,9 +84,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Image
             src="/logo/brand-logo.png"
             alt="Skilect Logo"
-            width={220}
-            height={64}
-            className="h-[4.5rem] w-auto object-contain transition-transform hover:scale-[1.02] active:scale-95"
+            width={180}
+            height={50}
+            className="h-11 w-auto object-contain transition-transform hover:scale-[1.02] active:scale-[95]"
             priority
           />
         </Link>
@@ -235,17 +245,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Mobile drawer toggle button                                        */
-/* ------------------------------------------------------------------ */
-
 export function MobileSidebarToggle() {
   return null; 
 }
-
-/* ------------------------------------------------------------------ */
-/* Main sidebar export                                                */
-/* ------------------------------------------------------------------ */
 
 export function DashboardSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
