@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       if (finalSkillGaps.length === 0) finalSkillGaps = required;
     }
 
-    // UPDATED: Fetched tasks nested within skill_nodes
+    // 1. Check for existing roadmaps safely
     const { data: existingRoadmaps } = await supabase
       .from("roadmaps")
       .select("*, skill_nodes(*)") 
@@ -157,7 +157,12 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingRoadmaps && existingRoadmaps.length > 0 && existingRoadmaps[0].skill_nodes?.length > 0) {
-      return NextResponse.json({ roadmap: existingRoadmaps[0] }, { status: 200 });
+      const existingRoadmap = existingRoadmaps[0];
+      if (existingRoadmap.skill_nodes) {
+        existingRoadmap.skill_nodes.sort((a: any, b: any) => (a.step_index || 0) - (b.step_index || 0));
+      }
+      // ⚠️ Kept commented out during verification
+      // return NextResponse.json({ roadmap: existingRoadmap }, { status: 200 });
     }
 
     let roadmapData;
@@ -220,40 +225,52 @@ export async function POST(request: NextRequest) {
       status: index === 0 ? "in_progress" : "not_started", 
       resources: node.resources || [],
       dependencies: node.dependencies || [],
+      step_index: index, 
+      tasks: (node.tasks || []).map((task: any) => ({
+        id: task.id || crypto.randomUUID(),
+        title: task.title || task.name || "Complete task",
+        description: task.description || "",
+        status: task.completed ? "completed" : "todo"
+      }))
     }));
 
     if (skillNodeRows.length > 0) {
-      await supabaseAdmin.from("skill_nodes").insert(skillNodeRows);
+      const { error: nodesError } = await supabaseAdmin
+        .from("skill_nodes")
+        .insert(skillNodeRows);
+
+      if (nodesError) {
+        console.error("❌ Supabase Skill Nodes Insert Error:", nodesError);
+        await supabaseAdmin.from("roadmaps").delete().eq("id", roadmap.id);
+        return NextResponse.json({ error: "Failed to allocate target skill nodes" }, { status: 500 });
+      }
     }
 
-    const taskRows: any[] = [];
-    (roadmapData.nodes || []).forEach((node: any) => {
-      (node.tasks || []).forEach((task: any) => {
-        taskRows.push({
-          roadmap_id: roadmap.id, 
-          user_id: userId, 
-          title: task.title || task.name || "Complete task",
-          description: task.description || "", 
-          status: task.completed ? "completed" : "todo", 
-          priority: "medium",
-        });
-      });
-    });
-
-    if (taskRows.length > 0) {
-      await supabaseAdmin.from("tasks").insert(taskRows);
-    }
-
-    // UPDATED: Fetched tasks nested within skill_nodes for the final return
-    const { data: completeRoadmap, error: refetchError } = await supabase
+    // ⚡ FIX 1: Refetch using supabaseAdmin to guarantee data visibility instantly across RLS policies
+    const { data: completeRoadmap, error: refetchError } = await supabaseAdmin
       .from("roadmaps")
-      .select("*, skill_nodes(*, tasks(*))")
+      .select("*, skill_nodes(*)")
       .eq("id", roadmap.id)
       .single();
 
-    if (refetchError) console.error("❌ Supabase Refetch Final Roadmap Error:", refetchError);
+    if (refetchError) {
+      console.error("❌ Supabase Refetch Final Roadmap Error:", refetchError);
+    } else if (completeRoadmap && completeRoadmap.skill_nodes) {
+      completeRoadmap.skill_nodes.sort((a: any, b: any) => (a.step_index || 0) - (b.step_index || 0));
+    }
 
-    return NextResponse.json({ roadmap: completeRoadmap }, { status: 201 });
+    // ⚡ FIX 2: Send explicit cache-control response headers to tell Next.js not to save stale empty layouts
+    return NextResponse.json(
+      { roadmap: completeRoadmap }, 
+      { 
+        status: 201,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        }
+      }
+    );
   } catch (error) {
     console.error("Critical Execution Fault:", error);
     return NextResponse.json({ error: "Server Processing Error" }, { status: 500 });

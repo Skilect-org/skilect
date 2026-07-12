@@ -32,14 +32,19 @@ export default function RoadmapsPage() {
     }
   }, []);
 
+  // Sync state cleanly without triggering infinite rendering loops or overwriting fresh data
   useEffect(() => {
     if (selectedRoadmap) {
       const updatedRoadmap = roadmaps.find((r: any) => r.id === selectedRoadmap.id);
       if (updatedRoadmap) {
-        setSelectedRoadmap(updatedRoadmap);
+        if (JSON.stringify(updatedRoadmap) !== JSON.stringify(selectedRoadmap)) {
+          setSelectedRoadmap(updatedRoadmap);
+        }
         if (activeNode) {
           const updatedNode = updatedRoadmap.skill_nodes?.find((n: any) => n.id === activeNode.id);
-          setActiveNode(updatedNode || null);
+          if (updatedNode && JSON.stringify(updatedNode) !== JSON.stringify(activeNode)) {
+            setActiveNode(updatedNode);
+          }
         }
       } else {
         setSelectedRoadmap(null);
@@ -80,18 +85,15 @@ export default function RoadmapsPage() {
 
     const isActionUncheck = currentStatus === true;
     
-    // 1. Sort nodes by step_index to ensure accurate cascading
     const currentNodes = [...(selectedRoadmap.skill_nodes || [])].sort(
       (a: any, b: any) => (a.step_index || 0) - (b.step_index || 0)
     );
     
     const targetIndex = currentNodes.findIndex((n: any) => n.id === nodeId);
 
-    // 2. Calculate the new state for all nodes
     const updatedNodes = currentNodes.map((n: any, index: number) => {
       const tasks = typeof n.tasks === 'string' ? JSON.parse(n.tasks) : n.tasks;
 
-      // CASE A: The node being toggled
       if (index === targetIndex) {
         const updatedTasks = tasks.map((t: any) => 
           t.id === taskId ? { ...t, completed: !currentStatus } : t
@@ -105,7 +107,6 @@ export default function RoadmapsPage() {
         };
       }
 
-      // CASE B: Reset all future nodes if we are unchecking
       if (isActionUncheck && index > targetIndex) {
         const resetTasks = tasks.map((t: any) => ({ ...t, completed: false }));
         return { 
@@ -118,7 +119,6 @@ export default function RoadmapsPage() {
       return n;
     });
 
-    // 3. Determine global roadmap state
     const isRoadmapComplete = updatedNodes.every((n: any) => n.status === "completed");
     const nextIsActive = !isRoadmapComplete;
 
@@ -128,12 +128,10 @@ export default function RoadmapsPage() {
       is_active: nextIsActive 
     };
 
-    // --- OPTIMISTIC UI UPDATES (Makes it instant) ---
     setSelectedRoadmap(updatedRoadmap);
     setRoadmaps(prev => prev.map(r => r.id === selectedRoadmap.id ? updatedRoadmap : r));
 
     try {
-      // 4. API Call to persist changes silently in the background
       await fetch("/api/roadmaps/nodes/updates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -149,7 +147,6 @@ export default function RoadmapsPage() {
       });
     } catch (err) {
       console.error("Failed to save progress", err);
-      // ONLY re-fetch if something breaks, acting as our safety net
       loadRoadmaps(); 
       alert("Could not save progress. Please check your connection.");
     }
@@ -166,8 +163,23 @@ export default function RoadmapsPage() {
       });
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
       const data = await response.json();
-      setRoadmaps((prev) => [data.roadmap, ...prev]);
-      setSelectedRoadmap(data.roadmap);
+      
+      // ⚡ The Fix: Synchronize with a clean database fetch immediately after generation
+      const freshRes = await fetch("/api/roadmaps");
+      if (freshRes.ok) {
+        const freshData = await freshRes.json();
+        const freshList = freshData.roadmaps || [];
+        
+        setRoadmaps(freshList);
+        
+        // Find the populated roadmap directly from the fresh layout array
+        const targetRoadmap = freshList.find((r: any) => r.id === data.roadmap?.id) || data.roadmap;
+        setSelectedRoadmap(targetRoadmap);
+      } else {
+        // Fallback layout insertion if server sync fails
+        setRoadmaps((prev) => [data.roadmap, ...prev]);
+        setSelectedRoadmap(data.roadmap);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to generate roadmap.");
     } finally {
@@ -175,8 +187,8 @@ export default function RoadmapsPage() {
     }
   };
 
-const activeRoadmaps = roadmaps.filter((r) => r && r.is_active !== false);
-const completedRoadmaps = roadmaps.filter((r) => r && r.is_active === false);
+  const activeRoadmaps = roadmaps.filter((r) => r && r.is_active !== false);
+  const completedRoadmaps = roadmaps.filter((r) => r && r.is_active === false);
 
   if (!selectedRoadmap) {
     return (
