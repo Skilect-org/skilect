@@ -32,51 +32,56 @@ export default function Navbar() {
   }, [mobileOpen]);
 
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/90 backdrop-blur-md shadow-sm" : "bg-transparent"
-      }`}
-    >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="fixed inset-x-0 top-0 z-50 px-4 sm:px-6">
+      <nav
+        className={`mx-auto flex max-w-6xl items-center justify-between px-6 transition-all duration-300 ease-out ${
+          scrolled
+            ? "mt-3 rounded-2xl bg-white/80 backdrop-blur-xl py-2 px-8 shadow-[0_2px_20px_rgba(0,0,0,0.06)]"
+            : "mt-0 rounded-none bg-transparent py-4 shadow-none"
+        }`}
+      >
         <Link href="/" className="flex items-center gap-2 select-none">
           <Image
             src="/logo/brand-logo.png"
             alt="Skilect Logo"
             width={220}
-            height={80}
-            className="h-16 w-auto object-contain"
+            height={64}
+            className={`w-auto object-contain transition-all duration-300 ease-out ${
+              scrolled ? "h-9" : "h-[4.5rem]"
+            }`}
             priority
           />
         </Link>
 
         {/* ── Center: Nav links (desktop) ── */}
-        <ul className="hidden md:flex items-center gap-8">
+        <ul className="hidden md:flex items-center gap-1">
           {navLinks.map(({ label, href }) => (
             <li key={label}>
               <Link
                 href={href}
-                className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+                className="relative px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 group"
               >
                 {label}
+                <span className="absolute inset-x-4 -bottom-0.5 h-px bg-gray-900 scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
               </Link>
             </li>
           ))}
         </ul>
 
         {/* ── Right: Actions (desktop) ── */}
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-4">
           {!isSignedIn ? (
             <>
               <Link
                 href="/sign-in"
-                className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+                className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 px-3 py-1.5"
               >
                 Login
               </Link>
 
               <Link
                 href="/sign-up"
-                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:bg-blue-800 shadow-sm"
+                className="inline-flex items-center justify-center rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-md active:scale-[0.97]"
               >
                 Get Started
               </Link>
