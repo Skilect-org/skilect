@@ -13,7 +13,7 @@ export default function Loading() {
           <img 
             src="/logo/brand-logo.png" 
             alt="Skilect Logo" 
-            className="h-20 w-auto object-contain drop-shadow-sm" 
+            className="h-12 w-auto object-contain drop-shadow-sm" 
           />
         </motion.div>
         

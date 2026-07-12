@@ -12,9 +12,9 @@ export default function Footer() {
             <Image
               src="/logo/brand-logo.png"
               alt="Skilect Logo"
-              width={200}
-              height={70}
-              className="h-14 w-auto object-contain"
+              width={220}
+              height={64}
+              className="h-[4.5rem] w-auto object-contain"
             />
           </Link>
           <p className="text-[11px] text-gray-400">
