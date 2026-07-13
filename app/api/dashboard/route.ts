@@ -19,17 +19,17 @@ export async function GET() {
 
     if (tasksError) throw tasksError;
 
-    // 2. Fetch Active Roadmaps WITH their embedded skill_nodes tasks AND status
+    // 2. Fetch ALL Roadmaps (Active AND Archived) to ensure progress never resets globally
     const { data: roadmaps } = await db
       .from("roadmaps")
       .select(`
         id, 
         title, 
         target_role,
+        is_active,
         skill_nodes ( id, tasks, status )
       `)
-      .eq("user_id", userId)
-      .eq("is_active", true);
+      .eq("user_id", userId);
 
     // 3. Combine both task sources into one unified array strictly for global metrics
     let allTasks = [...(dbTasks ?? [])];
@@ -38,7 +38,7 @@ export async function GET() {
     if (roadmaps && roadmaps.length > 0) {
       for (const roadmap of roadmaps) {
         
-        // Extract tasks embedded in skill_nodes to keep global task metrics accurate
+        // Extract tasks from ALL roadmaps to keep global metrics highly accurate
         if (roadmap.skill_nodes) {
           roadmap.skill_nodes.forEach((node: any) => {
             if (Array.isArray(node.tasks)) {
@@ -58,7 +58,7 @@ export async function GET() {
           });
         }
 
-        // GROUND TRUTH FIX: Calculate roadmap progress strictly using high-level milestones (skill_nodes)
+        // Calculate milestone progress
         const rmTotal = roadmap.skill_nodes ? roadmap.skill_nodes.length : 0;
         const rmCompleted = roadmap.skill_nodes 
           ? roadmap.skill_nodes.filter((node: any) => node.status === "completed").length 
@@ -66,21 +66,24 @@ export async function GET() {
 
         const progress = rmTotal > 0 ? Math.round((rmCompleted / rmTotal) * 100) : 0;
 
-        // AUTOMATIC ARCHIVE LOGIC
-        if (rmTotal > 0 && rmCompleted === rmTotal) {
-          await db.from("roadmaps").update({ is_active: false }).eq("id", roadmap.id);
-          continue; 
-        }
+        // ONLY process active roadmaps for the dashboard display widget
+        if (roadmap.is_active) {
+          // AUTOMATIC ARCHIVE LOGIC
+          if (rmTotal > 0 && rmCompleted === rmTotal) {
+            await db.from("roadmaps").update({ is_active: false }).eq("id", roadmap.id);
+            continue; 
+          }
 
-        activeRoadmaps.push({
-          id: roadmap.id,
-          title: roadmap.title,
-          target_role: roadmap.target_role,
-          totalSteps: rmTotal,        // Consistently shows milestone totals (e.g., 9, 6)
-          completedSteps: rmCompleted,  // Consistently shows completed milestones
-          progress: progress,
-          color: "#3b82f6" 
-        });
+          activeRoadmaps.push({
+            id: roadmap.id,
+            title: roadmap.title,
+            target_role: roadmap.target_role,
+            totalSteps: rmTotal,
+            completedSteps: rmCompleted,
+            progress: progress,
+            color: "#3b82f6" 
+          });
+        }
       }
     }
 

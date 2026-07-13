@@ -4,11 +4,10 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, CheckCircle2, Circle, Clock, Calendar, Pencil, Trash2, X,
-  Sparkles, Map, Flag, ChevronRight, Target,
+  Sparkles, Map, Flag, Target,
 } from "lucide-react";
 import { useTasks, type Task } from "@/hooks/use-tasks";
 
-/* ── Types ─────────────────────────────────────────────────────────── */
 type TaskSource = "ai-generated" | "roadmap" | "custom";
 type FilterTab = "all" | "in_progress" | "todo" | "completed";
 
@@ -24,7 +23,6 @@ export const emptyForm: DrawerFormData = {
   description: "",
 };
 
-/* ── Config maps ────────────────────────────────────────────────────── */
 const filterTabs: { key: FilterTab; label: string }[] = [
   { key: "all", label: "All Tasks" },
   { key: "todo", label: "To Do" },
@@ -32,7 +30,6 @@ const filterTabs: { key: FilterTab; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 
-// Map roadmap_id presence to a source badge
 function getSource(task: Task): TaskSource {
   if (task.roadmap_id) return "roadmap";
   if (task.description?.startsWith("From interview feedback")) return "ai-generated";
@@ -55,12 +52,10 @@ function formatDate(iso: string | null | undefined) {
   });
 }
 
-/* ── Progress Section ───────────────────────────────────────────────── */
 function ProgressSection({ completed, total }: { completed: number; total: number }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-6 py-5"
-      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+    <div className="rounded-xl border border-gray-100 bg-white px-6 py-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
@@ -79,15 +74,13 @@ function ProgressSection({ completed, total }: { completed: number; total: numbe
         </div>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-700 ease-out"
-          style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-2 text-right text-[11px] font-medium text-gray-400">{pct}% complete</p>
     </div>
   );
 }
 
-/* ── Task Card ─────────────────────────────────────────────────────── */
 function TaskCard({ task, onToggle, onEdit, onDelete }: {
   task: Task;
   onToggle: (id: string) => void;
@@ -98,6 +91,10 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
   const SourceIcon = source.icon;
   const isCompleted = task.status === "completed";
 
+  const roadmapLabel = task.roadmap_title && task.milestone_name 
+    ? `${task.roadmap_title} • ${task.milestone_name}`
+    : source.label;
+
   return (
     <motion.div layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
@@ -106,9 +103,7 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
       style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
       <div className="px-5 py-4">
         <div className="flex items-start gap-3">
-          {/* Toggle button — cycles todo → in_progress → completed */}
-          <button onClick={() => onToggle(task.id)}
-            className="mt-0.5 shrink-0 transition-transform duration-150 hover:scale-110">
+          <button onClick={() => onToggle(task.id)} className="mt-0.5 shrink-0 transition-transform duration-150 hover:scale-110">
             {isCompleted ? (
               <CheckCircle2 size={20} strokeWidth={2} className="text-emerald-500" />
             ) : task.status === "in_progress" ? (
@@ -119,8 +114,7 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
           </button>
 
           <div className="min-w-0 flex-1">
-            <p className={`text-[14px] font-medium leading-snug
-              ${isCompleted ? "text-gray-400 line-through" : "text-gray-900"}`}>
+            <p className={`text-[14px] font-medium leading-snug ${isCompleted ? "text-gray-400 line-through" : "text-gray-900"}`}>
               {task.title}
             </p>
             {task.description && (
@@ -133,9 +127,9 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
                   : "bg-gray-50 text-gray-500"}`}>
                 {task.status === "in_progress" ? "In Progress" : task.status === "completed" ? "Completed" : "To Do"}
               </span>
-              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${source.bg} ${source.text}`}>
-                <SourceIcon size={10} strokeWidth={2} />
-                {source.label}
+              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${source.bg} ${source.text} max-w-full truncate`}>
+                <SourceIcon size={10} strokeWidth={2} className="shrink-0" />
+                <span className="truncate">{roadmapLabel}</span>
               </span>
             </div>
           </div>
@@ -147,12 +141,10 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
             <span>Due {formatDate(task.due_date)}</span>
           </div>
           <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <button onClick={() => onEdit(task)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+            <button onClick={() => onEdit(task)} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
               <Pencil size={13} strokeWidth={1.75} />
             </button>
-            <button onClick={() => onDelete(task.id)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500">
+            <button onClick={() => onDelete(task.id)} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500">
               <Trash2 size={13} strokeWidth={1.75} />
             </button>
           </div>
@@ -162,7 +154,6 @@ function TaskCard({ task, onToggle, onEdit, onDelete }: {
   );
 }
 
-/* ── Task Drawer ────────────────────────────────────────────────────── */
 export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
   isOpen: boolean;
   onClose: () => void;
@@ -176,7 +167,6 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
     if (editingTask) {
       setFormData({
         name: editingTask.title || "",
-        // Safe check for string splitting in case the DB due_date format isn't standard
         dueDate: (editingTask.due_date && typeof editingTask.due_date === "string") 
           ? editingTask.due_date.split("T")[0] 
           : "",
@@ -212,15 +202,13 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
                   {editingTask ? "Update the task details." : "Add a new task to your plan."}
                 </p>
               </div>
-              <button onClick={onClose}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <button onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                 <X size={18} strokeWidth={1.75} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
               <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-medium text-gray-700">Task Name</label>
                   <input type="text" placeholder="e.g., Complete React Hooks Project"
@@ -243,7 +231,6 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="resize-none rounded-lg border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
                 </div>
-
               </div>
 
               <div className="flex items-center gap-3 border-t border-gray-100 px-6 py-4">
@@ -251,8 +238,7 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
                   className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60 disabled:pointer-events-none">
                   {saving ? "Saving..." : editingTask ? "Save Changes" : "Create Task"}
                 </button>
-                <button type="button" onClick={onClose}
-                  className="rounded-lg border border-gray-200 px-4 py-2.5 text-[13px] font-medium text-gray-600 hover:bg-gray-50">
+                <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2.5 text-[13px] font-medium text-gray-600 hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -264,7 +250,6 @@ export function TaskDrawer({ isOpen, onClose, onSubmit, editingTask, saving }: {
   );
 }
 
-/* ── Empty State ────────────────────────────────────────────────────── */
 function EmptyState({ filter }: { filter: FilterTab }) {
   const messages: Record<FilterTab, { title: string; subtitle: string }> = {
     all: { title: "No tasks yet", subtitle: "Create your first task to start preparing." },
@@ -284,19 +269,19 @@ function EmptyState({ filter }: { filter: FilterTab }) {
   );
 }
 
-/* ── Page ───────────────────────────────────────────────────────────── */
 export default function TasksPage() {
   const { tasks, loading, error, saving, counts, createTask, updateTask, toggleTask, deleteTask } = useTasks();
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  // Listen for topbar "New Task" button event
   useEffect(() => {
     const handler = () => { setEditingTask(null); setDrawerOpen(true); };
     window.addEventListener("open-new-task-drawer", handler);
     return () => window.removeEventListener("open-new-task-drawer", handler);
   }, []);
+
+  // ⚡ FIX: Removed redundant event listener that was firing parallel duplicate fetch requests
 
   const filterCounts: Record<FilterTab, number> = {
     all: counts.total,
@@ -353,7 +338,6 @@ export default function TasksPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-5 px-5 py-4 lg:px-6 lg:py-5">
-
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Tasks</h1>
@@ -361,8 +345,7 @@ export default function TasksPage() {
             Track and complete your placement preparation tasks.
           </p>
         </div>
-        <button
-          onClick={() => { setEditingTask(null); setDrawerOpen(true); }}
+        <button onClick={() => { setEditingTask(null); setDrawerOpen(true); }}
           className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-700">
           <Plus size={15} /> New Task
         </button>
@@ -370,7 +353,6 @@ export default function TasksPage() {
 
       <ProgressSection completed={counts.completed} total={counts.total} />
 
-      {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-2">
         {filterTabs.map((tab) => {
           const isActive = activeFilter === tab.key;
@@ -388,7 +370,6 @@ export default function TasksPage() {
         })}
       </div>
 
-      {/* Task list */}
       <div className="grid gap-3">
         <AnimatePresence mode="popLayout">
           {filteredTasks.length > 0 ? (

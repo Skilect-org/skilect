@@ -1,9 +1,11 @@
+// app/(app)/dashboard/page.tsx
 "use client";
 
 import { ListChecks, Mic, Map, Flame, ArrowRight, Plus, CheckCircle2, Circle, Clock, TrendingUp, Code2 } from "lucide-react";
 import Link from "next/link";
 import { useDashboard, type DashboardStats, type ActiveRoadmap } from "@/hooks/use-dashboard";
 import { useTasks, type Task } from "@/hooks/use-tasks";
+import { useEffect } from "react";
 
 interface ExtendedTask extends Task {
   priority?: "low" | "medium" | "high" | string;
@@ -76,6 +78,7 @@ function QuickStatCard({ icon: Icon, label, value, color, bgColor }: { icon: Rea
   );
 }
 
+// Skeleton loading layout wrapper
 function DashboardSkeleton() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 py-4 lg:px-6 lg:py-5 animate-pulse">
@@ -140,15 +143,19 @@ function RoadmapListCard({ roadmaps }: { roadmaps: ActiveRoadmap[] }) {
 
 function TaskListCard({ tasks, onToggle }: { tasks: ExtendedTask[]; onToggle: (id: string) => Promise<void>; }) {
   const getCategoryLabel = (task: ExtendedTask) => {
-    if (task.roadmap_id) return "Roadmap";
+    if (task.roadmap_id) {
+      return task.roadmap_title && task.milestone_name 
+        ? `${task.roadmap_title} • ${task.milestone_name}`
+        : "Roadmap";
+    }
     if (task.priority) return task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
     return "General";
   };
   
   const getCategoryBadgeClass = (task: ExtendedTask) => {
-    if (task.roadmap_id) return "bg-violet-50 text-violet-600";
-    if (task.priority === "high") return "bg-red-50 text-red-600";
-    return "bg-gray-50 text-gray-500";
+    if (task.roadmap_id) return "bg-violet-50 text-violet-600 max-w-full truncate text-[10px]";
+    if (task.priority === "high") return "bg-red-50 text-red-600 text-[10px]";
+    return "bg-gray-50 text-gray-500 text-[10px]";
   };
   
   const statusIcon = (status: ExtendedTask["status"]) => {
@@ -182,8 +189,8 @@ function TaskListCard({ tasks, onToggle }: { tasks: ExtendedTask[]; onToggle: (i
                 <p className={`truncate text-[13px] font-medium ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-800"}`}>
                   {task.title}
                 </p>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <span className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${getCategoryBadgeClass(task)}`}>
+                <div className="mt-0.5 flex items-center gap-2 max-w-full overflow-hidden">
+                  <span className={`inline-flex rounded-md px-1.5 py-0.5 font-semibold ${getCategoryBadgeClass(task)}`}>
                     {getCategoryLabel(task)}
                   </span>
                 </div>
@@ -209,6 +216,12 @@ export default function DashboardPage() {
   const { stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useDashboard();
   const { tasks, loading: tasksLoading, error: tasksError, updateTask, refetch: refetchTasks } = useTasks();
 
+  // Unified updates listening configuration
+  useEffect(() => {
+    window.addEventListener("refresh-readiness", refetchStats);
+    return () => window.removeEventListener("refresh-readiness", refetchStats);
+  }, [refetchStats]);
+
   const handleToggleTask = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
@@ -218,7 +231,7 @@ export default function DashboardPage() {
       await updateTask(id, { status: nextStatus });
       await Promise.all([refetchStats(), refetchTasks()]);
       
-      // FIX: Tell the window context that mutations happened so the Sidebar fetches fresh data
+      // Notify sidebar progress element context explicitly
       window.dispatchEvent(new Event("refresh-readiness"));
     } catch (err) {
       console.error("Error toggling task:", err);

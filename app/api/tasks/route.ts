@@ -30,34 +30,58 @@ export async function GET(request: NextRequest) {
   const statusFilter = searchParams.get("status");
   const db = createServerSupabaseClient();
 
-  // 1. Get standalone tasks
-  let query = db.from("tasks").select("*").eq("user_id", userId);
+  // 1. Get standalone tasks (with explicit title join for custom tasks with roadmap relations)
+  let query = db
+    .from("tasks")
+    .select(`
+      *,
+      roadmaps (
+        title
+      )
+    `)
+    .eq("user_id", userId);
+    
   if (statusFilter) query = query.eq("status", statusFilter);
   const { data: dbTasks, error: dbError } = await query;
   if (dbError) return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
 
-  let allTasks = [...(dbTasks ?? [])];
+  // Map out the custom table items to align correctly with the frontend schema definitions
+  const mappedDbTasks = (dbTasks ?? []).map((t: any) => ({
+    ...t,
+    roadmap_title: t.roadmaps?.title || undefined
+  }));
 
-  // 2. Get roadmap milestone tasks from JSON arrays
-  const { data: roadmaps } = await db
+  let allTasks = [...mappedDbTasks];
+
+  // 2. Get roadmap milestone tasks from JSON arrays alongside parent names
+  // ⚡ FIX: Changed skill_nodes(id, title, tasks) to skill_nodes(id, name, tasks)
+  const { data: roadmaps, error: roadmapsError } = await db
     .from("roadmaps")
-    .select('id, skill_nodes(id, tasks)')
-    .eq("user_id", userId);
+    .select('id, title, skill_nodes(id, name, tasks)')
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  if (roadmapsError) {
+    console.error("Error fetching roadmaps:", roadmapsError);
+  }
 
   if (roadmaps) {
     roadmaps.forEach((rm) => {
       rm.skill_nodes?.forEach((node: any) => {
         if (Array.isArray(node.tasks)) {
           node.tasks.forEach((t: any) => {
-            const currentStatus = t.status || "todo"; // Standardize dynamic roadmap task statuses
+            const currentStatus = t.status || "todo"; 
             
             if (!statusFilter || currentStatus === statusFilter) {
               allTasks.push({
                 ...t,
                 id: `${node.id}_${t.id}`, 
-                status: currentStatus, // FIX: Guarantees status field exists natively on delivery to frontend
+                status: currentStatus, 
                 roadmap_id: rm.id,
                 node_id: node.id,
+                roadmap_title: rm.title, 
+                // ⚡ FIX: Use node.name instead of node.title
+                milestone_name: node.name,
                 created_at: t.created_at || new Date().toISOString(),
                 updated_at: t.updated_at || new Date().toISOString(),
               });
@@ -162,14 +186,13 @@ export async function PATCH(request: NextRequest) {
       .select()
       .maybeSingle();
 
-    if (task) {
-      return NextResponse.json({ task });
-    }
+    if (task) return NextResponse.json({ task });
   }
 
+  // ⚡ FIX: Changed skill_nodes(id, title...) to skill_nodes(id, name...)
   const { data: roadmaps } = await db
     .from("roadmaps")
-    .select('id, skill_nodes(id, tasks)')
+    .select('id, title, skill_nodes(id, name, tasks, status)') 
     .eq("user_id", userId);
 
   if (roadmaps) {
@@ -180,15 +203,23 @@ export async function PATCH(request: NextRequest) {
         if (Array.isArray(node.tasks)) {
           const taskIndex = node.tasks.findIndex((t: any) => t.id === targetTaskId);
           if (taskIndex !== -1) {
-            node.tasks[taskIndex] = { ...node.tasks[taskIndex], ...payload };
             
+            node.tasks[taskIndex] = { ...node.tasks[taskIndex], ...payload };
             if (node.tasks[taskIndex].id.includes('_')) {
-              node.tasks[taskIndex].id = targetTaskId;
+              node.tasks[taskIndex].id = targetTaskId; 
             }
+
+            const allTasksCompleted = node.tasks.every((t: any) => t.status === "completed");
+            const newNodeStatus = allTasksCompleted 
+              ? "completed" 
+              : (node.status === "completed" ? "in_progress" : node.status);
 
             const { error: updateError } = await db
               .from("skill_nodes")
-              .update({ tasks: node.tasks })
+              .update({ 
+                tasks: node.tasks,
+                status: newNodeStatus 
+              })
               .eq("id", node.id);
 
             if (updateError) throw updateError;
@@ -198,7 +229,10 @@ export async function PATCH(request: NextRequest) {
                 ...node.tasks[taskIndex],
                 id: `${node.id}_${targetTaskId}`, 
                 roadmap_id: rm.id,
-                node_id: node.id
+                node_id: node.id,
+                roadmap_title: rm.title,
+                // ⚡ FIX: Use node.name
+                milestone_name: node.name
               } 
             });
           }
