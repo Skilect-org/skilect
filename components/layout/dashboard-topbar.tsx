@@ -27,20 +27,7 @@ interface ActionButton {
   actionId?: string;
 }
 
-const routeActions: Record<string, ActionButton[]> = {
-  "/dashboard": [
-    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Roadmap", icon: Sparkles, variant: "filled", actionId: "generate-roadmap" },
-  ],
-  "/tasks": [
-    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Tasks with AI", icon: Sparkles, variant: "filled", actionId: "generate-tasks" },
-  ],
-  "/roadmaps": [
-    { label: "New Task", icon: Plus, variant: "outline", actionId: "new-task" },
-    { label: "Generate Roadmap", icon: Sparkles, variant: "filled", actionId: "generate-roadmap" },
-  ],
-};
+const routeActions: Record<string, ActionButton[]> = {};
 
 /* ------------------------------------------------------------------ */
 /* Component                                                          */

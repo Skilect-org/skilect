@@ -313,8 +313,12 @@ export default function RoadmapsPage() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
       <div className="flex-1 overflow-y-auto p-8">
-        <button onClick={() => { setSelectedRoadmap(null); setActiveNode(null); }} className="mb-6 text-sm font-medium text-indigo-600 hover:underline">
-          &larr; Back to Dashboard
+        <button
+          onClick={() => { setSelectedRoadmap(null); setActiveNode(null); }}
+          className="mb-6 inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 hover:shadow active:scale-[0.97]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Back to Dashboard
         </button>
         <h2 className="mb-2 text-3xl font-bold text-slate-900">{selectedRoadmap.title}</h2>
         <p className="mb-12 max-w-2xl text-slate-500">{selectedRoadmap.description}</p>
