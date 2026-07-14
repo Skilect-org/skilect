@@ -13,6 +13,8 @@ export interface Task {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  roadmap_title?: string;
+  milestone_name?: string;
 }
 
 export type TaskStatus = Task["status"];
@@ -24,21 +26,17 @@ export function useTasks() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   
-  // Track if this is the first time data is being loaded
   const isInitialLoad = useRef(true);
 
+  // ⚡ FIX: Removed volatile stats dependencies to make the function reference completely stable 
+  // ⚡ FIX: Appended a timestamp cache-buster to completely eliminate stale network cache hits
   const fetchTasks = useCallback(async () => {
     if (isInitialLoad.current) {
       setLoading(true);
     }
     setError(null);
     try {
-      const activeRoadmapId = stats?.activeRoadmaps?.[0]?.id;
-      const url = activeRoadmapId 
-        ? `/api/tasks?roadmapId=${activeRoadmapId}` 
-        : "/api/tasks";
-
-      const res = await fetch(url);
+      const res = await fetch(`/api/tasks?t=${Date.now()}`);
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const data = await res.json();
       setTasks(data.tasks || []);
@@ -46,12 +44,20 @@ export function useTasks() {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
-      isInitialLoad.current = false; // Background updates won't toggle loading screen
+      isInitialLoad.current = false;
     }
-  }, [stats?.activeRoadmaps]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
+  }, [fetchTasks]);
+
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      fetchTasks();
+    };
+    window.addEventListener("refresh-tasks-data", handleGlobalRefresh);
+    return () => window.removeEventListener("refresh-tasks-data", handleGlobalRefresh);
   }, [fetchTasks]);
 
   const createTask = async (payload: {
@@ -76,6 +82,8 @@ export function useTasks() {
       if (!res.ok) throw new Error("Failed to create task");
       const data = await res.json();
       setTasks((prev) => [data.task, ...prev]);
+      
+      window.dispatchEvent(new Event("refresh-readiness"));
       return data.task;
     } finally {
       setSaving(false);
@@ -83,7 +91,6 @@ export function useTasks() {
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
-    // Optimistic Update
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
     );
@@ -98,23 +105,37 @@ export function useTasks() {
       const data = await res.json();
       
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data.task } : t)));
+      
+      window.dispatchEvent(new Event("refresh-readiness"));
+      window.dispatchEvent(new Event("refresh-tasks-data"));
+      
       return data.task;
     } catch (err) {
-      fetchTasks(); // Rollback configuration on error
+      fetchTasks();
       throw err;
     }
   };
 
-  const toggleTask = async (id: string) => {
+  const toggleTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
-    const next: TaskStatus = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "completed" : "todo";
-    await updateTask(id, { status: next });
+    
+    let next: TaskStatus;
+    if (task.status === "todo") {
+      next = "in_progress";
+    } else if (task.status === "in_progress") {
+      next = "completed";
+    } else {
+      next = "todo";
+    }
+    
+    updateTask(id, { status: next }).catch((err) => console.error("Toggle failed", err));
   };
 
   const deleteTask = async (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
+    window.dispatchEvent(new Event("refresh-readiness"));
   };
 
   const counts = {

@@ -146,7 +146,6 @@ export async function POST(request: NextRequest) {
       if (finalSkillGaps.length === 0) finalSkillGaps = required;
     }
 
-    // 1. Check for existing roadmaps safely
     const { data: existingRoadmaps } = await supabase
       .from("roadmaps")
       .select("*, skill_nodes(*)") 
@@ -161,7 +160,6 @@ export async function POST(request: NextRequest) {
       if (existingRoadmap.skill_nodes) {
         existingRoadmap.skill_nodes.sort((a: any, b: any) => (a.step_index || 0) - (b.step_index || 0));
       }
-      // ⚠️ Kept commented out during verification
       // return NextResponse.json({ roadmap: existingRoadmap }, { status: 200 });
     }
 
@@ -230,11 +228,14 @@ export async function POST(request: NextRequest) {
         id: task.id || crypto.randomUUID(),
         title: task.title || task.name || "Complete task",
         description: task.description || "",
-        status: task.completed ? "completed" : "todo"
+        status: task.completed ? "completed" : "todo",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }))
     }));
 
     if (skillNodeRows.length > 0) {
+      // 1. Insert ONLY into skill_nodes (The GET endpoints will pull them automatically)
       const { error: nodesError } = await supabaseAdmin
         .from("skill_nodes")
         .insert(skillNodeRows);
@@ -246,33 +247,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ⚡ FIX 1: Refetch using supabaseAdmin to guarantee data visibility instantly across RLS policies
-    const { data: completeRoadmap, error: refetchError } = await supabaseAdmin
-      .from("roadmaps")
-      .select("*, skill_nodes(*)")
-      .eq("id", roadmap.id)
-      .single();
-
-    if (refetchError) {
-      console.error("❌ Supabase Refetch Final Roadmap Error:", refetchError);
-    } else if (completeRoadmap && completeRoadmap.skill_nodes) {
-      completeRoadmap.skill_nodes.sort((a: any, b: any) => (a.step_index || 0) - (b.step_index || 0));
-    }
-
-    // ⚡ FIX 2: Send explicit cache-control response headers to tell Next.js not to save stale empty layouts
-    return NextResponse.json(
-      { roadmap: completeRoadmap }, 
-      { 
-        status: 201,
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        }
-      }
-    );
+    return NextResponse.json({ success: true, roadmapId: roadmap.id }, { status: 201 });
   } catch (error) {
-    console.error("Critical Execution Fault:", error);
-    return NextResponse.json({ error: "Server Processing Error" }, { status: 500 });
+    console.error("[/api/roadmaps/generate] Error:", error);
+    return NextResponse.json({ error: "Generation failed" }, { status: 500 });
   }
 }

@@ -1,3 +1,5 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { 
   Navbar, 
   Hero, 
@@ -10,7 +12,13 @@ import {
   Footer 
 } from "@/components/landing";
   
-export default function Home() { 
+export default async function Home() { 
+  // Intercept authenticated users on the server layer
+  const { userId } = await auth();
+  if (userId) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="bg-[#f8f9fc] min-h-screen">
       <Navbar />
